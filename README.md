@@ -1,65 +1,90 @@
 # JSON Analyzer
 
-JSON Analyzer is a local-first desktop app for checking, formatting, and exploring JSON data. It helps you understand JSON payloads, find duplicate records and values, inspect field patterns, and safely preview or run guarded `curl` requests.
+JSON Analyzer is a local-first desktop app for validating, formatting, and exploring JSON data. It helps you inspect large payloads, spot duplicate records and values, review field patterns, and safely preview or run guarded `curl` requests.
 
-The app runs locally through a Rust + Tauri desktop shell. It does **not** start a backend HTTP server, and it does not send your JSON to a remote service.
+Your JSON stays on your machine. The app runs through a Rust + Tauri desktop shell and does not send pasted JSON to a remote service.
 
-## What you can do
+## Features
 
-- Paste JSON, validate it, format it, clear it, or load an example.
-- Analyze objects, arrays, and duplicate-key JSON while preserving duplicate-key information.
-- Optionally flatten a top-level list of lists for analysis.
-- Review analysis results in focused views:
-  - **Statistics** — summary counts, structure, field patterns, and min/max-filled records.
-  - **Values** — grouped values, duplicate value groups, and field-level exploration.
-  - **Duplicates** — exact duplicate JSON records.
-- Use Values Explorer to search, sort, paginate, and inspect grouped values for selected fields.
-- Parse, preview, and execute guarded `curl` requests with redaction, timeouts, response-size limits, private-network guardrails, and in-memory async job cancellation.
+- Validate, format, clear, and load example JSON.
+- Analyze objects, arrays, nested structures, and duplicate-key JSON.
+- Review summary statistics, field patterns, duplicate records, and grouped values.
+- Search, sort, page, expand, and copy values from the Values Explorer.
+- Parse and run guarded `curl` requests with redaction, timeouts, response-size limits, redirect limits, and private-network guardrails.
 
-## Quick start
+## Install
 
-### Requirements
+Desktop builds are published on the GitHub Releases page:
 
-- Rust stable with edition 2024 support.
-- Node.js 24 recommended. Node 22.12+ should also work.
-- pnpm 11.5.1.
-- Tauri system prerequisites for your OS when running or building the desktop app.
+- [Releases](https://github.com/ddv1982/json-analyzer/releases)
 
-The repo pins pnpm in `package.json`. If Corepack is available:
+### macOS
 
-```sh
-corepack enable
+Download the `.dmg` for your Mac from the latest release:
+
+- Apple Silicon: `aarch64` / ARM64
+- Intel: `x86_64`
+
+Open the `.dmg` and drag JSON Analyzer into Applications.
+
+### Linux
+
+Linux builds require a distro with **WebKitGTK 4.1**.
+
+Enable the repository once per machine:
+
+```bash
+bash <(curl -fsSL https://github.com/ddv1982/json-analyzer/releases/latest/download/install-apt-repo.sh)
 ```
 
-Or install pnpm directly:
+The setup script downloads the repository setup package to a temporary file, verifies it against a GPG-signed SHA256 sidecar from the release, installs the JSON Analyzer archive keyring and APT source configuration, then removes the temporary files.
 
-```sh
-npm install -g pnpm@11.5.1
+Refresh APT metadata:
+
+```bash
+sudo apt update
 ```
 
-### Install dependencies
+Install JSON Analyzer:
+
+```bash
+sudo apt install json-analyzer
+```
+
+After the repository is enabled, use normal `sudo apt update` and `sudo apt install json-analyzer` commands for installs and updates. JSON Analyzer can also be installed by searching for "JSON Analyzer" in GNOME Software or Ubuntu Software after package/AppStream metadata has refreshed.
+
+The standalone `.AppImage`, `.deb`, and `.rpm` release assets remain available as direct-download fallback options. Use the `.rpm` package on RPM-based distributions such as Fedora, RHEL-compatible, and openSUSE systems that provide WebKitGTK 4.1.
+
+## Run From Source
+
+Requirements:
+
+- Rust stable with edition 2024 support
+- Node.js 24
+- pnpm 11.5.1
+- Tauri system prerequisites for your operating system
+
+Install dependencies:
 
 ```sh
 pnpm install
 ```
 
-### Run the desktop app
+Run the desktop app:
 
 ```sh
 pnpm tauri:dev
 ```
 
-This starts the Vite dev server and opens the Tauri desktop app. The Rust analysis code is compiled into the desktop app and called through Tauri commands; there is no separate Flask, Axum, or localhost API server to run.
-
-### Frontend-only mode
+Run the frontend in a browser for UI-only work:
 
 ```sh
 pnpm -C frontend dev
 ```
 
-Use this for quick UI work in a browser. Some desktop behavior is represented by fixture-backed browser mocks, so `pnpm tauri:dev` remains the authoritative local app path.
+Some desktop behavior is mocked in browser mode, so `pnpm tauri:dev` is the authoritative local app path.
 
-## Useful commands
+## Build And Check
 
 Run the full local quality gate:
 
@@ -67,71 +92,44 @@ Run the full local quality gate:
 pnpm check
 ```
 
-This runs Rust formatting, clippy, Rust tests, frontend lint/typecheck/tests/build, and Tauri tests.
-
-Run a Tauri compile smoke check without creating installers:
+Compile the Tauri app without installer bundles:
 
 ```sh
 pnpm tauri:build:no-bundle
 ```
 
-Refresh Tauri icon assets after editing `src-tauri/icons/app-icon.svg`, then do a local smoke check:
-
-```sh
-pnpm exec tauri icon src-tauri/icons/app-icon.svg
-pnpm tauri:build:no-bundle
-```
-
-For a quick visual check, open `pnpm tauri:dev` and confirm the window/app icon renders as expected on your platform.
-
-Create a local unsigned packaged build:
+Create unsigned local bundles for the current platform:
 
 ```sh
 pnpm tauri:package:local
 ```
 
-Build outputs are written under `src-tauri/target/release/`. Installer bundles, when created, are under `src-tauri/target/release/bundle/`.
+Build outputs are written under `src-tauri/target/release/`. Installer bundles are written under `src-tauri/target/release/bundle/` or a target-specific bundle directory when cross-target builds are used.
 
-## Project layout
+## Release Notes
+
+Each release tag must have matching notes in:
 
 ```text
-frontend/     React + TypeScript UI and browser mocks
+docs/releases/vX.Y.Z.md
+```
+
+CI builds and validates Linux packages, including desktop/AppStream metadata. The release workflow reuses the passing Linux CI artifact, signs Debian packages when signing is enabled, publishes the signed APT repository to GitHub Pages, and builds macOS DMGs from the same prebuilt frontend artifact.
+
+## Project Layout
+
+```text
+frontend/     React + TypeScript UI
 src/          Rust JSON parser, analyzers, DTOs, config, and service layer
-src-tauri/    Tauri desktop shell, command handlers, permissions, and app config
+src-tauri/    Tauri desktop shell, command handlers, permissions, and package metadata
+scripts/      Packaging and release validation helpers
 tests/        Rust integration tests and fixtures
-docs/         Architecture decisions, plans, reviews, and research notes
+docs/         Decisions, plans, reviews, release notes, and research notes
 ```
 
-At runtime the flow is:
-
-```text
-React UI → typed command wrappers → Tauri commands → JsonAnalyzerService → Rust analysis core
-```
-
-## Privacy and security notes
+## Privacy And Security
 
 - JSON analysis runs locally.
-- The app exposes a narrow Tauri command surface instead of a general backend API.
-- The frontend does not receive broad filesystem, shell, or general HTTP permissions.
-- `curl` execution is handled by Rust service code with private/sensitive network guardrails, timeout and response-size limits, conservative redirects, and sensitive-value redaction.
-- Curl jobs are in-memory only; there is no durable job history or SQLite storage.
-- PDF export UI and general report download/save flows are intentionally deferred.
-
-## CI
-
-GitHub Actions runs on pushes and pull requests to `main`:
-
-1. Install dependencies with `pnpm install --frozen-lockfile`.
-2. Run `pnpm check`.
-3. Install Linux Tauri dependencies.
-4. Run `pnpm tauri:build:no-bundle`.
-
-Release signing, notarization, installer policy, and distribution checks are not part of CI yet.
-
-## More documentation
-
-- `CONTRIBUTING.md` — development guardrails and expected checks.
-- `docs/decisions/` — architecture decision records.
-- `docs/plans/` — implementation plans and status notes.
-- `docs/reviews/` — design and code review notes.
-- `docs/research/` — source-contract notes and fixture backlog.
+- The frontend talks to Rust through narrow Tauri commands.
+- The app does not grant broad filesystem, shell, or general frontend network access.
+- Curl execution is handled by Rust with guardrails and in-memory jobs only.

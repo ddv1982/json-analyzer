@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.jsonanalyzer.desktop</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>JSON Analyzer</name>
+  <summary>Local-first JSON analysis tool</summary>
+  <description>
+    <p>JSON Analyzer validates, formats, and explores JSON data locally. It helps inspect structures, duplicate records, field patterns, grouped values, and guarded curl responses without sending JSON to a remote service.</p>
+  </description>
+  <launchable type="desktop-id">com.jsonanalyzer.desktop.desktop</launchable>
+  <provides>
+    <binary>json-analyzer-app</binary>
+  </provides>
+  <url type="homepage">https://github.com/ddv1982/json-analyzer</url>
+  <developer id="com.jsonanalyzer">
+    <name>Douwe de Vries</name>
+  </developer>
+  <releases>
+    <release version="0.1.3" date="2026-06-06" />
+    <release version="0.1.2" date="2026-06-06" />
+    <release version="0.1.1" date="2026-06-06" />
+    <release version="0.1.0" date="2026-06-06" />
+  </releases>
+</component>

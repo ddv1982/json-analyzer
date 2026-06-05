@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -13,6 +16,8 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FRONTEND_DIST_ARTIFACT_NAME: json-analyzer-frontend-dist
+  RELEASE_ARTIFACT_NAME: json-analyzer-linux-x86_64-release-bundle
 
 jobs:
   check:
@@ -57,10 +62,20 @@ jobs:
       - name: Run checks
         run: pnpm check
 
-  tauri-smoke-build:
-    name: Tauri Smoke Build
+      - name: Upload frontend dist artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ env.FRONTEND_DIST_ARTIFACT_NAME }}
+          path: frontend/dist/**
+          if-no-files-found: error
+          retention-days: 7
+
+  build-linux-bundles:
+    name: Build Linux Bundles
     runs-on: ubuntu-22.04
     needs: check
+    env:
+      TAURI_TARGET: x86_64-unknown-linux-gnu
 
     steps:
       - name: Checkout repository
@@ -75,13 +90,26 @@ jobs:
           echo "Disk usage after cleanup:"
           df -h
 
-      - name: Install Tauri dependencies
+      - name: Install Linux packaging dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            appstream \
+            cpio \
+            desktop-file-utils \
+            dpkg-sig \
+            gnupg \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            patchelf \
+            rpm \
+            rpm2cpio
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TAURI_TARGET }}
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
@@ -89,7 +117,7 @@ jobs:
           workspaces: |
             . -> target
             src-tauri -> src-tauri/target
-          key: rust-${{ runner.os }}-tauri-smoke
+          key: rust-${{ runner.os }}-linux-bundles-${{ env.TAURI_TARGET }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -106,5 +134,216 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Tauri app without bundles
-        run: pnpm tauri:build:no-bundle
+      - name: Download frontend dist artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ env.FRONTEND_DIST_ARTIFACT_NAME }}
+          path: frontend/dist
+
+      - name: Validate prebuilt frontend contract
+        run: |
+          set -euo pipefail
+
+          temp_dir="$(mktemp -d)"
+          cleanup() {
+            if [ -d "${temp_dir}/dist" ]; then
+              rm -rf frontend/dist
+              mv "${temp_dir}/dist" frontend/dist
+            fi
+            rm -rf "${temp_dir}"
+          }
+          trap cleanup EXIT
+
+          mv frontend/dist "${temp_dir}/dist"
+          if JSON_ANALYZER_USE_PREBUILT_FRONTEND=1 scripts/build_frontend_for_tauri.sh; then
+            echo "Expected prebuilt frontend mode to fail when frontend/dist/index.html is missing." >&2
+            exit 1
+          fi
+
+          mv "${temp_dir}/dist" frontend/dist
+          JSON_ANALYZER_USE_PREBUILT_FRONTEND=1 scripts/build_frontend_for_tauri.sh
+
+      - name: Build Tauri Linux bundles
+        env:
+          JSON_ANALYZER_USE_PREBUILT_FRONTEND: '1'
+        run: |
+          rm -rf "src-tauri/target/${TAURI_TARGET}/release/bundle"
+          pnpm exec tauri build \
+            --target "${TAURI_TARGET}" \
+            --config '{"bundle":{"active":true}}' \
+            --no-sign
+
+      - name: Build canonical RPM package
+        run: python3 scripts/build_rpm_package.py --target "${TAURI_TARGET}"
+
+      - name: Normalize Debian desktop id
+        run: python3 scripts/normalize_linux_deb_desktop_id.py "src-tauri/target/${TAURI_TARGET}/release/bundle/deb/*.deb"
+
+      - name: Validate Debian package metadata
+        env:
+          DEB_METADATA_REPORT: deb-metadata-report.json
+        run: |
+          set -euo pipefail
+
+          set +e
+          python3 scripts/validate_linux_package_metadata.py \
+            "src-tauri/target/${TAURI_TARGET}/release/bundle/deb/*.deb" \
+            --json-report "${DEB_METADATA_REPORT}"
+          validator_status=$?
+          set -e
+
+          python3 <<'PY'
+          import json
+          import os
+          import pathlib
+
+          report_path = pathlib.Path(os.environ["DEB_METADATA_REPORT"])
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          lines = [
+              "## Debian package metadata validation",
+              "",
+              f"Gate: {'PASS' if report['ok'] else 'FAIL'}",
+              "",
+              "| Package | Component ID | Project license | Desktop ID | Binary |",
+              "| --- | --- | --- | --- | --- |",
+          ]
+          for package in report["packages"]:
+              lines.append(
+                  "| {package} | {component_id} | {project_license} | {launchable} | {binary} |".format(
+                      package=pathlib.Path(package["package"]).name,
+                      component_id=package.get("component_id") or "",
+                      project_license=package.get("project_license") or "",
+                      launchable=package.get("launchable") or "",
+                      binary=package.get("binary") or "",
+                  )
+              )
+          lines.extend(["", f"JSON report: `{report_path}`"])
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(lines) + "\n")
+          PY
+
+          exit "${validator_status}"
+
+      - name: Validate RPM package metadata
+        env:
+          RPM_METADATA_REPORT: rpm-metadata-report.json
+        run: |
+          set -euo pipefail
+
+          set +e
+          python3 scripts/validate_linux_package_metadata.py \
+            "src-tauri/target/${TAURI_TARGET}/release/bundle/rpm/*.rpm" \
+            --json-report "${RPM_METADATA_REPORT}"
+          validator_status=$?
+          set -e
+
+          python3 <<'PY'
+          import json
+          import os
+          import pathlib
+
+          report_path = pathlib.Path(os.environ["RPM_METADATA_REPORT"])
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          lines = [
+              "## RPM package metadata validation",
+              "",
+              f"Gate: {'PASS' if report['ok'] else 'FAIL'}",
+              "",
+              "| Package | Component ID | Project license | Desktop ID | Binary |",
+              "| --- | --- | --- | --- | --- |",
+          ]
+          for package in report["packages"]:
+              lines.append(
+                  "| {package} | {component_id} | {project_license} | {launchable} | {binary} |".format(
+                      package=pathlib.Path(package["package"]).name,
+                      component_id=package.get("component_id") or "",
+                      project_license=package.get("project_license") or "",
+                      launchable=package.get("launchable") or "",
+                      binary=package.get("binary") or "",
+                  )
+              )
+          lines.extend(["", f"JSON report: `{report_path}`"])
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(lines) + "\n")
+          PY
+
+          exit "${validator_status}"
+
+      - name: Sign Debian packages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.ENABLE_DEB_SIGNING == 'true'
+        env:
+          DEB_SIGNING_PRIVATE_KEY: ${{ secrets.DEB_SIGNING_PRIVATE_KEY }}
+          DEB_SIGNING_KEY_FINGERPRINT: ${{ secrets.DEB_SIGNING_KEY_FINGERPRINT }}
+          DEB_SIGNING_KEY_PASSPHRASE: ${{ secrets.DEB_SIGNING_KEY_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+
+          missing=()
+          [ -n "${DEB_SIGNING_PRIVATE_KEY}" ] || missing+=("DEB_SIGNING_PRIVATE_KEY")
+          [ -n "${DEB_SIGNING_KEY_FINGERPRINT}" ] || missing+=("DEB_SIGNING_KEY_FINGERPRINT")
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Required Debian signing secrets are missing: ${missing[*]}" >&2
+            exit 1
+          fi
+
+          deb_dir="src-tauri/target/${TAURI_TARGET}/release/bundle/deb"
+          shopt -s nullglob
+          deb_packages=("${deb_dir}"/*.deb)
+
+          if [ ${#deb_packages[@]} -eq 0 ]; then
+            echo "No Debian packages found in ${deb_dir}." >&2
+            exit 1
+          fi
+
+          gnupg_home="$(mktemp -d)"
+          key_file="$(mktemp)"
+          passphrase_file=""
+          cleanup() {
+            rm -rf "${gnupg_home}"
+            rm -f "${key_file}"
+            if [ -n "${passphrase_file}" ]; then
+              rm -f "${passphrase_file}"
+            fi
+          }
+          trap cleanup EXIT
+
+          chmod 700 "${gnupg_home}"
+          export GNUPGHOME="${gnupg_home}"
+          echo allow-loopback-pinentry > "${GNUPGHOME}/gpg-agent.conf"
+          gpgconf --kill gpg-agent || true
+
+          printf '%s' "${DEB_SIGNING_PRIVATE_KEY}" | base64 --decode > "${key_file}"
+          gpg --batch --import "${key_file}"
+
+          expected_fingerprint="$(printf '%s' "${DEB_SIGNING_KEY_FINGERPRINT}" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+          imported_fingerprint="$(gpg --batch --with-colons --fingerprint "${expected_fingerprint}" | awk -F: '$1 == "fpr" { print toupper($10); exit }')"
+
+          if [ "${imported_fingerprint}" != "${expected_fingerprint}" ]; then
+            echo "Imported Debian signing key fingerprint did not match DEB_SIGNING_KEY_FINGERPRINT." >&2
+            exit 1
+          fi
+
+          gpg_options="--batch --pinentry-mode loopback"
+          if [ -n "${DEB_SIGNING_KEY_PASSPHRASE}" ]; then
+            passphrase_file="$(mktemp)"
+            chmod 600 "${passphrase_file}"
+            printf '%s' "${DEB_SIGNING_KEY_PASSPHRASE}" > "${passphrase_file}"
+            gpg_options="${gpg_options} --passphrase-file ${passphrase_file}"
+          fi
+
+          for deb in "${deb_packages[@]}"; do
+            echo "Signing ${deb}"
+            dpkg-sig -g "${gpg_options}" --sign builder -k "${expected_fingerprint}" "${deb}"
+          done
+
+      - name: Upload reusable Tauri bundle artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ env.RELEASE_ARTIFACT_NAME }}
+          path: |
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+          retention-days: 7

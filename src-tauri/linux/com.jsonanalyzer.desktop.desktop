@@ -1,0 +1,9 @@
+[Desktop Entry]
+Categories=Development;Utility;
+Comment=Local-first JSON analysis and inspection tool
+Exec=json-analyzer-app
+StartupWMClass=json-analyzer-app
+Icon=json-analyzer
+Name=JSON Analyzer
+Terminal=false
+Type=Application
