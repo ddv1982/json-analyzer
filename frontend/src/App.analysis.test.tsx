@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   analyzeJsonMock,
-  analyzeValuesMock,
+  analyzeValuesExplorerMock,
   deferred,
   discoverValuesFieldsMock,
   fixtureAnalysis,
@@ -92,17 +92,31 @@ describe('App frontend MVP workflow', () => {
     fireEvent.click(screen.getByRole('tab', { name: /^duplicates$/i }))
     const duplicatesView = screen.getByLabelText(/duplicates result view/i)
     const exactDuplicatesView = within(duplicatesView).getByLabelText(/exact duplicates view/i)
-    expect(exactDuplicatesView).toHaveTextContent('Duplicates found')
-    expect(within(exactDuplicatesView).getByText('0, 2')).toBeInTheDocument()
+    const formattedDuplicateJson = JSON.stringify(JSON.parse(fixtureAnalysis.exact_duplicates.duplicates[0].value), null, 2)
+    expect(exactDuplicatesView).toHaveTextContent('Total Items')
+    expect(exactDuplicatesView).toHaveTextContent('Unique Items')
+    expect(exactDuplicatesView).toHaveTextContent('Duplicate Groups')
+    expect(exactDuplicatesView).toHaveTextContent('Duplicate Items')
+    expect(exactDuplicatesView).toHaveTextContent(`Found ${fixtureAnalysis.exact_duplicates.duplicate_groups} groups with exact duplicates`)
+    expect(exactDuplicatesView).toHaveTextContent('These items have identical JSON representations and may need attention.')
+    expect(exactDuplicatesView).toHaveTextContent('Duplicate Groups')
+    expect(exactDuplicatesView).toHaveTextContent('Group #1')
+    expect(within(exactDuplicatesView).getByText('Found at indices: 0, 2')).toBeInTheDocument()
     expect(within(exactDuplicatesView).getByLabelText(/exact duplicate groups/i)).toBeInTheDocument()
+    expect(findPreWithText(exactDuplicatesView, formattedDuplicateJson)).toBeNull()
+
+    fireEvent.click(within(exactDuplicatesView).getByRole('button', { name: /expand duplicate group 1/i }))
+    expect(findPreWithText(exactDuplicatesView, formattedDuplicateJson)).toBeInTheDocument()
+
+    fireEvent.click(within(exactDuplicatesView).getByRole('button', { name: /collapse duplicate group 1/i }))
+    expect(findPreWithText(exactDuplicatesView, formattedDuplicateJson)).toBeNull()
+
     const copyDuplicateJsonButton = within(exactDuplicatesView).getByRole('button', { name: /copy duplicate group 1 json/i })
     fireEvent.click(copyDuplicateJsonButton)
     await waitFor(() => {
-      expect(writeClipboardTextMock).toHaveBeenCalledWith(
-        JSON.stringify(JSON.parse(fixtureAnalysis.exact_duplicates.duplicates[0].value), null, 2),
-      )
+      expect(writeClipboardTextMock).toHaveBeenCalledWith(formattedDuplicateJson)
     })
-    expect(copyDuplicateJsonButton).toHaveTextContent(/copied/i)
+    expect(copyDuplicateJsonButton).toHaveClass('copied')
     expect(within(duplicatesView).queryByLabelText(/duplicate analysis workflow/i)).not.toBeInTheDocument()
     expect(within(duplicatesView).queryByRole('button', { name: /find duplicates/i })).not.toBeInTheDocument()
   })
@@ -119,7 +133,11 @@ describe('App frontend MVP workflow', () => {
     const duplicatesTab = within(tablist).getByRole('tab', { name: /^duplicates$/i })
     const panel = screen.getByRole('tabpanel')
 
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Statistics', 'Values', 'Duplicates'])
+    expect(tabs).toHaveLength(3)
+    expect(statisticsTab).toHaveAccessibleName('Statistics')
+    expect(valuesTab).toHaveAccessibleName('Values')
+    expect(duplicatesTab).toHaveAccessibleName('Duplicates')
+    expect(within(duplicatesTab).getByText(String(fixtureAnalysis.exact_duplicates.duplicate_groups))).toBeInTheDocument()
     expect(statisticsTab).toHaveAttribute('aria-selected', 'true')
     expect(statisticsTab).toHaveAttribute('tabIndex', '0')
     expect(valuesTab).toHaveAttribute('aria-selected', 'false')
@@ -134,12 +152,12 @@ describe('App frontend MVP workflow', () => {
     expect(valuesTab).toHaveFocus()
     expect(valuesTab).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', valuesTab.id)
-    expect(await screen.findByLabelText(/values explorer view/i)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /^expand$/i })).toBeInTheDocument()
 
     fireEvent.keyDown(valuesTab, { key: 'End' })
     expect(duplicatesTab).toHaveFocus()
     expect(duplicatesTab).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByLabelText(/exact duplicates view/i)).toHaveTextContent('Duplicates found')
+    expect(screen.getByLabelText(/exact duplicates view/i)).toHaveTextContent('Found 1 groups with exact duplicates')
 
     fireEvent.keyDown(duplicatesTab, { key: 'Home' })
     expect(statisticsTab).toHaveFocus()
@@ -165,8 +183,15 @@ describe('App frontend MVP workflow', () => {
         expect.objectContaining({ flatten: true, json_string: sampleJsonInput }),
       )
     })
+
+    const valuesView = await screen.findByLabelText(/values explorer view/i)
+    fireEvent.click(within(valuesView).getByRole('button', { name: /^expand$/i }))
+    fireEvent.click(within(valuesView).getByRole('button', { name: /select field to analyze/i }))
+    const listbox = await within(valuesView).findByRole('listbox', { name: /select field to analyze/i })
+    fireEvent.click(within(listbox).getByRole('option', { name: /department/i }))
+
     await waitFor(() => {
-      expect(analyzeValuesMock).toHaveBeenCalledWith(
+      expect(analyzeValuesExplorerMock).toHaveBeenCalledWith(
         expect.objectContaining({ flatten: true, json_string: sampleJsonInput }),
       )
     })
@@ -284,8 +309,14 @@ describe('App frontend MVP workflow', () => {
     expect(await screen.findByLabelText(/statistics result view/i)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: /^duplicates$/i }))
-    expect(screen.getByLabelText(/exact duplicates view/i)).toHaveTextContent('No duplicates')
-    expect(screen.getByLabelText(/exact duplicates view/i)).toHaveTextContent('No suitable array found')
+    const duplicatesTab = screen.getByRole('tab', { name: /^duplicates$/i })
+    const exactDuplicatesView = screen.getByLabelText(/exact duplicates view/i)
+    expect(within(duplicatesTab).queryByText('0')).not.toBeInTheDocument()
+    expect(exactDuplicatesView).toHaveTextContent('No Exact Duplicates Found')
+    expect(exactDuplicatesView).toHaveTextContent('All 0 items in your JSON data are unique. This means there are no identical objects or values.')
+    expect(exactDuplicatesView).toHaveTextContent('Analyzed: No suitable array found')
+    expect(exactDuplicatesView).toHaveTextContent('Total Items')
+    expect(exactDuplicatesView).toHaveTextContent('Unique Items')
 
     fireEvent.click(screen.getByRole('tab', { name: /^statistics$/i }))
     const dataCompleteness = screen.getByLabelText(/data completeness/i)
@@ -294,3 +325,7 @@ describe('App frontend MVP workflow', () => {
     expect(screen.queryByLabelText(/basic min max view/i)).not.toBeInTheDocument()
   })
 })
+
+function findPreWithText(container: HTMLElement, text: string): HTMLElement | null {
+  return Array.from(container.querySelectorAll('pre')).find((pre) => pre.textContent === text) ?? null
+}

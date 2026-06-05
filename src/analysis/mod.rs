@@ -36,4 +36,7 @@ pub use statistics::{
 pub use structure::{
     ContainerSummary, SchemaNode, SchemaProperty, SchemaValue, StructureAnalysis, analyze_structure,
 };
-pub use values::{analyze_values, discover_values_fields};
+pub use values::{
+    ValuesCompositeAmbiguityError, analyze_values, analyze_values_explorer, discover_values_fields,
+    validate_values_explorer_composite_unambiguous,
+};

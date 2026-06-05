@@ -5,8 +5,10 @@ use serde_json::Value as Json;
 
 use crate::ast::JsonValue;
 use crate::dto::{
-    ParentItem, SortDirection, ValuesAnalysisResponse, ValuesFieldDiscoveryResponse,
-    ValuesFieldInfo, ValuesGroup, ValuesSort, ValuesSortBy,
+    ParentItem, SortDirection, ValuesAnalysisResponse, ValuesExplorerAnalysisResponse,
+    ValuesExplorerFilter, ValuesExplorerFilterMatchMode, ValuesExplorerGroup, ValuesExplorerItem,
+    ValuesExplorerSortMode, ValuesFieldDiscoveryResponse, ValuesFieldInfo, ValuesGroup, ValuesSort,
+    ValuesSortBy,
 };
 use crate::fields::label_for_pattern;
 use crate::json_ops::{path_to_pattern, safe_str};
@@ -32,6 +34,13 @@ pub struct ValuesCombinationLimitError {
     pub scope: ValuesCombinationLimitScope,
     pub combination_count: usize,
     pub limit: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValuesCompositeAmbiguityError {
+    pub record_index: usize,
+    pub field_path: String,
+    pub match_count: usize,
 }
 
 /// Discover Values Explorer fields from the best object-array candidate.
@@ -135,6 +144,45 @@ pub fn validate_values_combination_limits(
                 combination_count: request_combination_count,
                 limit: request_limit,
             });
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate target-style composite matching.
+///
+/// The target Values Explorer treats each selected field as a single scoped
+/// value per record. If a field resolves to multiple values inside the same
+/// record scope, composite matching is ambiguous and should fail instead of
+/// expanding a Cartesian product.
+pub fn validate_values_explorer_composite_unambiguous(
+    value: &JsonValue,
+    selected_fields: &[String],
+) -> Result<(), ValuesCompositeAmbiguityError> {
+    if selected_fields.len() <= 1 {
+        return Ok(());
+    }
+
+    let Some(records) = candidate_records(value) else {
+        return Ok(());
+    };
+
+    let field_segments = selected_fields
+        .iter()
+        .map(|field| (field, pattern_segments_for_record(field)))
+        .collect::<Vec<_>>();
+
+    for (record_index, record) in &records {
+        for (field_path, segments) in &field_segments {
+            let match_count = collect_record_pattern_matches(record, segments).len();
+            if match_count > 1 {
+                return Err(ValuesCompositeAmbiguityError {
+                    record_index: *record_index,
+                    field_path: (*field_path).clone(),
+                    match_count,
+                });
+            }
         }
     }
 
@@ -276,6 +324,174 @@ pub fn analyze_values(
     }
 }
 
+/// Analyze fields with the target Values Explorer contract.
+///
+/// The response intentionally contains a duplicate-group page and an all-values
+/// page from the same request so the UI can show target-style global summary
+/// metrics without deriving duplicate counts from the visible all-results page.
+#[derive(Debug, Clone, Copy)]
+pub struct ValuesExplorerAnalysisOptions {
+    pub sort_mode: ValuesExplorerSortMode,
+    pub page: usize,
+    pub groups_page: usize,
+    pub page_size: usize,
+    pub max_items_per_group: usize,
+}
+
+#[must_use]
+pub fn analyze_values_explorer(
+    value: &JsonValue,
+    selected_fields: &[String],
+    filter: Option<&ValuesExplorerFilter>,
+    options: ValuesExplorerAnalysisOptions,
+) -> ValuesExplorerAnalysisResponse {
+    let Some(records) = candidate_records(value) else {
+        return ValuesExplorerAnalysisResponse {
+            field_path: selected_fields.join(" + "),
+            field_paths: selected_fields.to_vec(),
+            is_composite: selected_fields.len() > 1,
+            total_items: 0,
+            unique_values: 0,
+            duplicate_group_count: 0,
+            has_duplicates: false,
+            duplicates: Vec::new(),
+            all_field_values: Vec::new(),
+            page: options.page,
+            page_size: options.page_size,
+            total_pages: 1,
+            has_next_page: false,
+            groups_page: options.groups_page,
+            groups_total_pages: 1,
+            sort_mode: options.sort_mode,
+            filter: filter.cloned(),
+        };
+    };
+
+    let field_segments = selected_fields
+        .iter()
+        .map(|field| pattern_segments_for_record(field))
+        .collect::<Vec<_>>();
+    let filter_segments = filter.map(|filter| pattern_segments_for_record(&filter.field_path));
+
+    let mut groups: Vec<GroupAccumulator> = Vec::new();
+    for (record_index, record) in &records {
+        if let Some(filter) = filter
+            && !record_matches_values_filter(
+                record,
+                filter,
+                filter_segments.as_deref().unwrap_or(&[]),
+            )
+        {
+            continue;
+        }
+
+        let per_field_matches = field_segments
+            .iter()
+            .map(|segments| collect_record_pattern_matches(record, segments))
+            .collect::<Vec<_>>();
+
+        if per_field_matches.iter().any(Vec::is_empty) {
+            continue;
+        }
+
+        let combinations = match_combinations(&per_field_matches);
+        for combination in combinations {
+            let key_values = combination
+                .iter()
+                .map(|matched| value_to_json_key(matched.value))
+                .collect::<Vec<_>>();
+            let identity = combination
+                .iter()
+                .map(|matched| typed_identity(matched.value))
+                .collect::<Vec<_>>();
+            let display_parts = combination
+                .iter()
+                .map(|matched| safe_str(matched.value))
+                .collect::<Vec<_>>();
+            let source_paths = combination
+                .iter()
+                .map(|matched| record_source_path(*record_index, &matched.source_path))
+                .collect::<Vec<_>>();
+
+            if let Some(existing) = groups.iter_mut().find(|group| group.identity == identity) {
+                existing.count += 1;
+                existing.source_paths.extend(source_paths);
+                existing.add_record_index(*record_index);
+                if existing.should_collect_parent_item(*record_index, options.max_items_per_group) {
+                    existing.add_parent_item(parent_item_for_record(
+                        *record_index,
+                        record,
+                        selected_fields,
+                        &field_segments,
+                    ));
+                }
+            } else {
+                groups.push(GroupAccumulator {
+                    identity,
+                    key: key_values,
+                    display_value: display_parts.join(" | "),
+                    count: 1,
+                    first_source_path: source_paths.first().cloned().unwrap_or_default(),
+                    source_paths,
+                    record_indexes: vec![*record_index],
+                    parent_items: if options.max_items_per_group > 0 {
+                        vec![parent_item_for_record(
+                            *record_index,
+                            record,
+                            selected_fields,
+                            &field_segments,
+                        )]
+                    } else {
+                        Vec::new()
+                    },
+                });
+            }
+        }
+    }
+
+    sort_groups(&mut groups, values_sort_for_mode(options.sort_mode));
+
+    let total_items = groups.iter().map(|group| group.count).sum();
+    let unique_values = groups.len();
+    let duplicate_group_count = groups.iter().filter(|group| group.count > 1).count();
+    let duplicate_total_pages = total_pages(duplicate_group_count, options.page_size);
+    let groups_total_pages = total_pages(unique_values, options.page_size);
+    let has_next_page = options.page < duplicate_total_pages;
+
+    let duplicates = page_slice(
+        groups.iter().filter(|group| group.count > 1),
+        options.page,
+        options.page_size,
+    )
+    .into_iter()
+    .map(values_explorer_group_from_accumulator)
+    .collect::<Vec<_>>();
+    let all_field_values = page_slice(groups.iter(), options.groups_page, options.page_size)
+        .into_iter()
+        .map(values_explorer_group_from_accumulator)
+        .collect::<Vec<_>>();
+
+    ValuesExplorerAnalysisResponse {
+        field_path: selected_fields.join(" + "),
+        field_paths: selected_fields.to_vec(),
+        is_composite: selected_fields.len() > 1,
+        total_items,
+        unique_values,
+        duplicate_group_count,
+        has_duplicates: duplicate_group_count > 0,
+        duplicates,
+        all_field_values,
+        page: options.page,
+        page_size: options.page_size,
+        total_pages: duplicate_total_pages,
+        has_next_page,
+        groups_page: options.groups_page,
+        groups_total_pages,
+        sort_mode: options.sort_mode,
+        filter: filter.cloned(),
+    }
+}
+
 /// Enforce the configured parent/source item cap on each Values Explorer group.
 ///
 /// The analyzer collects parent items in input order while deduplicating by
@@ -288,6 +504,21 @@ pub fn cap_parent_items_per_group(
 ) -> ValuesAnalysisResponse {
     for group in &mut response.groups {
         group.parent_items.truncate(max_parent_items_per_group);
+    }
+    response
+}
+
+/// Enforce the same preview-item cap on the target Values Explorer response.
+#[must_use]
+pub fn cap_values_explorer_items_per_group(
+    mut response: ValuesExplorerAnalysisResponse,
+    max_items_per_group: usize,
+) -> ValuesExplorerAnalysisResponse {
+    for group in &mut response.duplicates {
+        group.items.truncate(max_items_per_group);
+    }
+    for group in &mut response.all_field_values {
+        group.items.truncate(max_items_per_group);
     }
     response
 }
@@ -397,6 +628,15 @@ impl GroupAccumulator {
         {
             self.parent_items.push(parent_item);
         }
+    }
+
+    fn should_collect_parent_item(&self, record_index: usize, max_items_per_group: usize) -> bool {
+        max_items_per_group > 0
+            && self.parent_items.len() < max_items_per_group
+            && !self
+                .parent_items
+                .iter()
+                .any(|item| item.record_index == record_index)
     }
 
     fn search_text(&self) -> String {
@@ -670,6 +910,94 @@ fn is_summary_value(value: &JsonValue) -> bool {
         value,
         JsonValue::Null | JsonValue::Bool(_) | JsonValue::Number(_) | JsonValue::String(_)
     )
+}
+
+fn values_sort_for_mode(sort_mode: ValuesExplorerSortMode) -> ValuesSort {
+    match sort_mode {
+        ValuesExplorerSortMode::Frequency => ValuesSort {
+            by: ValuesSortBy::Count,
+            direction: SortDirection::Desc,
+        },
+        ValuesExplorerSortMode::Alphabetical => ValuesSort {
+            by: ValuesSortBy::Value,
+            direction: SortDirection::Asc,
+        },
+    }
+}
+
+fn record_matches_values_filter(
+    record: &JsonValue,
+    filter: &ValuesExplorerFilter,
+    filter_segments: &[String],
+) -> bool {
+    collect_record_pattern_matches(record, filter_segments)
+        .iter()
+        .any(|matched| values_filter_matches(matched.value, filter))
+}
+
+fn values_filter_matches(value: &JsonValue, filter: &ValuesExplorerFilter) -> bool {
+    let mut haystack = safe_str(value);
+    let mut needle = filter.value.clone();
+
+    if !filter.case_sensitive {
+        haystack = haystack.to_lowercase();
+        needle = needle.to_lowercase();
+    }
+
+    match filter.match_mode {
+        ValuesExplorerFilterMatchMode::Contains => haystack.contains(&needle),
+        ValuesExplorerFilterMatchMode::Exact => haystack == needle,
+    }
+}
+
+fn total_pages(total_items: usize, page_size: usize) -> usize {
+    if total_items == 0 {
+        return 1;
+    }
+
+    total_items.div_ceil(page_size)
+}
+
+fn page_slice<'a, I>(items: I, page: usize, page_size: usize) -> Vec<&'a GroupAccumulator>
+where
+    I: Iterator<Item = &'a GroupAccumulator>,
+{
+    let start = page.saturating_sub(1).saturating_mul(page_size);
+    items.skip(start).take(page_size).collect()
+}
+
+fn values_explorer_group_from_accumulator(group: &GroupAccumulator) -> ValuesExplorerGroup {
+    let value = if group.key.len() == 1 {
+        group.key[0].clone()
+    } else {
+        Json::Array(group.key.clone())
+    };
+
+    ValuesExplorerGroup {
+        value,
+        display_value: group.display_value.clone(),
+        count: group.count,
+        is_duplicate: group.count > 1,
+        items: group
+            .parent_items
+            .iter()
+            .map(|item| ValuesExplorerItem {
+                index: item.record_index,
+                item: Json::Object(
+                    item.summary
+                        .iter()
+                        .map(|(key, value)| (key.clone(), value.clone()))
+                        .collect(),
+                ),
+                source_path: item.source_path.clone(),
+                field_value: if group.key.len() == 1 {
+                    group.key[0].clone()
+                } else {
+                    Json::Array(group.key.clone())
+                },
+            })
+            .collect(),
+    }
 }
 
 fn sort_groups(groups: &mut [GroupAccumulator], sort: ValuesSort) {

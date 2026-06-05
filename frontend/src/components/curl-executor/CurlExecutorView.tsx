@@ -15,6 +15,9 @@ import {
   type ProblemDetails,
 } from '../../lib/commands'
 import { useClipboardCopy } from '../../lib/clipboard'
+import { Badge, type BadgeVariant } from '../common/Badge'
+import { Button } from '../common/Button'
+import { CopyButton } from '../common/CopyButton'
 
 const SAMPLE_CURL = `curl -X POST https://api.example.com/users \\
   -H 'Authorization: Bearer example-token' \\
@@ -304,9 +307,9 @@ export function CurlExecutorView() {
             <p className="section-kicker">Instructions</p>
             <h2 id="curl-how-to-use-title">How to use</h2>
           </div>
-          <span className={`status-badge ${isCurlAvailable && canStartJobs && canUseBatch ? 'success' : 'warning'}`}>
+          <Badge variant={isCurlAvailable && canStartJobs && canUseBatch ? 'success' : 'warning'}>
             {formatCurlFeatureStatus(isCurlAvailable, canExecuteSingleRequest, canStartJobs, canUseBatch, canCancelJobs)}
-          </span>
+          </Badge>
         </div>
 
         <div className="curl-instructions-grid">
@@ -433,25 +436,25 @@ export function CurlExecutorView() {
 
         <div className="action-row curl-action-row">
           {mode === 'single' ? (
-            <button className="primary-action" type="button" onClick={handleExecute} disabled={!hasInput || isBusy || isJobActive || !canExecuteSingleRequest}>
+            <Button variant="primary" onClick={handleExecute} disabled={!hasInput || isBusy || isJobActive || !canExecuteSingleRequest}>
               {busyAction === 'execute' ? 'Executing...' : 'Execute'}
-            </button>
+            </Button>
           ) : canEnterBatchMode ? (
-            <button className="primary-action" type="button" onClick={() => void handleStartBatchJob()} disabled={!hasInput || isBusy || isJobActive || batchCurls.length > curlLimits.max_batch_size}>
+            <Button variant="primary" onClick={() => void handleStartBatchJob()} disabled={!hasInput || isBusy || isJobActive || batchCurls.length > curlLimits.max_batch_size}>
               {busyAction === 'start-job'
                 ? 'Executing Batch...'
                 : largeBatchConfirmationPending
                   ? 'Confirm and Execute Batch'
                   : 'Execute Batch'}
-            </button>
+            </Button>
           ) : null}
-          <button type="button" onClick={handleClear} disabled={!hasInput || isBusy || isJobActive}>
+          <Button onClick={handleClear} disabled={!hasInput || isBusy || isJobActive}>
             Clear
-          </button>
+          </Button>
           {jobResults && !isTerminalJobStatus(jobResults.job.status) && canCancelJobs ? (
-            <button className="danger-action" type="button" onClick={() => void handleCancelJob()} disabled={isBusy}>
+            <Button variant="danger" onClick={() => void handleCancelJob()} disabled={isBusy}>
               {busyAction === 'cancel-job' ? 'Stopping...' : 'Stop'}
-            </button>
+            </Button>
           ) : null}
         </div>
       </section>
@@ -486,16 +489,14 @@ function CurlResponsePanel({ response }: { response: CurlHttpResponse }) {
       <div className="result-card-heading">
         <h3>Response</h3>
         <div className="inline-action-group">
-          <span className="status-badge success">
+          <Badge variant="success">
             {response.status} {response.status_text ?? ''}
-          </span>
-          <button
-            type="button"
-            className={`copy-button ${copiedKey === 'curl-response' ? 'copied' : ''} ${errorKey === 'curl-response' ? 'error' : ''}`}
+          </Badge>
+          <CopyButton
+            state={copiedKey === 'curl-response' ? 'copied' : errorKey === 'curl-response' ? 'error' : 'idle'}
+            label="Copy Response"
             onClick={() => void copy(response.body, 'curl-response')}
-          >
-            {copiedKey === 'curl-response' ? 'Copied' : errorKey === 'curl-response' ? 'Copy failed' : 'Copy Response'}
-          </button>
+          />
         </div>
       </div>
       <dl className="key-detail-list">
@@ -553,15 +554,13 @@ function CurlJobPanel({ jobResults, mode }: { jobResults: CurlJobResultsResponse
         </div>
         <div className="inline-action-group">
           {mergedDataPayload ? (
-            <button
-              type="button"
-              className={`copy-button ${copiedKey === 'curl-merged-data' ? 'copied' : ''} ${errorKey === 'curl-merged-data' ? 'error' : ''}`}
+            <CopyButton
+              state={copiedKey === 'curl-merged-data' ? 'copied' : errorKey === 'curl-merged-data' ? 'error' : 'idle'}
+              label="Copy Merged Data"
               onClick={() => void copy(mergedDataPayload, 'curl-merged-data')}
-            >
-              {copiedKey === 'curl-merged-data' ? 'Copied' : errorKey === 'curl-merged-data' ? 'Copy failed' : 'Copy Merged Data'}
-            </button>
+            />
           ) : null}
-          <span className={`status-badge ${jobStatusBadgeClass(job.status)}`}>{formatJobStatus(job.status)}</span>
+          <Badge variant={jobStatusBadgeVariant(job.status)}>{formatJobStatus(job.status)}</Badge>
         </div>
       </div>
       <dl className="key-detail-list">
@@ -709,11 +708,14 @@ function formatJobStatus(status: CurlJobStatus): string {
   }
 }
 
-function jobStatusBadgeClass(status: CurlJobStatus): string {
+function jobStatusBadgeVariant(status: CurlJobStatus): BadgeVariant {
   if (status === 'succeeded') {
     return 'success'
   }
-  if (status === 'failed' || status === 'canceled') {
+  if (status === 'failed') {
+    return 'danger'
+  }
+  if (status === 'canceled') {
     return 'warning'
   }
   return 'info'

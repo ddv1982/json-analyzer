@@ -18,8 +18,8 @@ pub use analysis::{
     MinMaxRecord, MinMaxStatistics, StatisticsAnalysis, StringLengthStats, StructureAnalysis,
     TypeCount, ValueDistribution, analyze_advanced_field_duplicates, analyze_composite_duplicates,
     analyze_exact_duplicates, analyze_field_duplicates, analyze_min_max_filled, analyze_statistics,
-    analyze_structure, analyze_values, discover_values_fields,
-    validate_duplicate_combination_limits,
+    analyze_structure, analyze_values, analyze_values_explorer, discover_values_fields,
+    validate_duplicate_combination_limits, validate_values_explorer_composite_unambiguous,
 };
 pub use ast::{JsonNumber, JsonNumberError, JsonValue};
 pub use config::{

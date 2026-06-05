@@ -1,7 +1,6 @@
+import type { AppView } from '../../state/useAppUiStore'
 import type { ThemePreference } from '../../state/useThemePreference'
 import { ThemeToggle } from './ThemeToggle'
-
-export type AppView = 'json-analyzer' | 'curl-executor'
 
 interface AppHeaderProps {
   activeView: AppView

@@ -2,6 +2,8 @@ import { type KeyboardEvent, useRef } from 'react'
 import type { AnalysisResponse, ProblemDetails } from '../../lib/commands'
 import type { BusyAction, ResultTab } from '../../state/useJsonAnalyzerState'
 import { EmptyState, ErrorPanel, LoadingPanel } from '../common/StatusPanels'
+import { Badge } from '../common/Badge'
+import { Button } from '../common/Button'
 import { ResultView } from './ResultView'
 
 const RESULT_TABS: { id: ResultTab; label: string }[] = [
@@ -84,7 +86,7 @@ export function AnalysisResultsPanel({
           <p className="section-kicker">Analysis</p>
           <h2 id="analysis-results-heading">Analysis Results</h2>
         </div>
-        {analysis ? <span className="meta-pill success-pill">Ready</span> : <span className="meta-pill">Ready to Analyze</span>}
+        {analysis ? <Badge variant="success">Ready</Badge> : <Badge variant="neutral">Ready to Analyze</Badge>}
       </div>
 
       {isAnalyzing ? (
@@ -92,23 +94,26 @@ export function AnalysisResultsPanel({
       ) : analysisError ? (
         <div className="results-state-stack">
           <ErrorPanel error={analysisError} />
-          <button type="button" className="primary-action" onClick={onAnalyze} disabled={!hasInput}>
+          <Button variant="primary" onClick={onAnalyze} disabled={!hasInput}>
             Try Again
-          </button>
+          </Button>
         </div>
       ) : analysis ? (
         <>
           <div className="results-actions" aria-label="Analysis actions">
-            <button type="button" className="primary-action" onClick={onAnalyze} disabled={!hasInput}>
+            <Button variant="primary" onClick={onAnalyze} disabled={!hasInput}>
               Re-analyze
-            </button>
-            <button type="button" onClick={onClearResults}>
+            </Button>
+            <Button onClick={onClearResults}>
               Clear Results
-            </button>
+            </Button>
           </div>
           <div className="tab-list" role="tablist" aria-label="Analysis result views" aria-orientation="horizontal">
             {RESULT_TABS.map((tab, index) => {
               const isActive = tab.id === activeTab
+              const duplicateCount = tab.id === 'duplicates' && analysis.exact_duplicates.has_duplicates
+                ? analysis.exact_duplicates.duplicate_groups
+                : null
               return (
                 <button
                   key={tab.id}
@@ -128,6 +133,7 @@ export function AnalysisResultsPanel({
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                 >
                   {tab.label}
+                  {duplicateCount !== null ? <span className="tab-count-pill" aria-hidden="true">{duplicateCount}</span> : null}
                 </button>
               )
             })}

@@ -7,6 +7,7 @@ import {
   analyzeCompositeDuplicates,
   analyzeJson,
   analyzeValues,
+  analyzeValuesExplorer,
   discoverValuesFields,
   cancelCurlJob,
   executeCurl,
@@ -46,6 +47,7 @@ describe('Tauri command wrappers', () => {
       'min_max_filled',
       'discover_values_fields',
       'analyze_values',
+      'analyze_values_explorer',
       'analyze_advanced_field_duplicates',
       'analyze_composite_duplicates',
       'parse_curl',
@@ -77,6 +79,15 @@ describe('Tauri command wrappers', () => {
       page: 1,
       page_size: 25,
       include_parent_items: true,
+    })
+    await analyzeValuesExplorer({
+      json_string: '[]',
+      selected_fields: ['[].department'],
+      filter: null,
+      sort_mode: 'frequency',
+      page: 1,
+      groups_page: 2,
+      page_size: 25,
     })
     await analyzeAdvancedFieldDuplicates({
       json_string: '[]',
@@ -140,7 +151,18 @@ describe('Tauri command wrappers', () => {
         include_parent_items: true,
       },
     })
-    expect(invokeMock).toHaveBeenNthCalledWith(9, 'analyze_advanced_field_duplicates', {
+    expect(invokeMock).toHaveBeenNthCalledWith(9, 'analyze_values_explorer', {
+      request: {
+        json_string: '[]',
+        selected_fields: ['[].department'],
+        filter: null,
+        sort_mode: 'frequency',
+        page: 1,
+        groups_page: 2,
+        page_size: 25,
+      },
+    })
+    expect(invokeMock).toHaveBeenNthCalledWith(10, 'analyze_advanced_field_duplicates', {
       request: {
         json_string: '[]',
         field_path: '[].department',
@@ -151,7 +173,7 @@ describe('Tauri command wrappers', () => {
         page_size: 25,
       },
     })
-    expect(invokeMock).toHaveBeenNthCalledWith(10, 'analyze_composite_duplicates', {
+    expect(invokeMock).toHaveBeenNthCalledWith(11, 'analyze_composite_duplicates', {
       request: {
         json_string: '[]',
         field_paths: ['[].department', '[].role'],
@@ -162,16 +184,16 @@ describe('Tauri command wrappers', () => {
         page_size: 25,
       },
     })
-    expect(invokeMock).toHaveBeenNthCalledWith(11, 'parse_curl', {
+    expect(invokeMock).toHaveBeenNthCalledWith(12, 'parse_curl', {
       request: { curl: 'curl https://api.example.com' },
     })
-    expect(invokeMock).toHaveBeenNthCalledWith(12, 'validate_curl_guardrail', {
+    expect(invokeMock).toHaveBeenNthCalledWith(13, 'validate_curl_guardrail', {
       request: { method: 'GET', url: 'https://api.example.com', redirect_target: null },
     })
-    expect(invokeMock).toHaveBeenNthCalledWith(13, 'execute_curl', {
+    expect(invokeMock).toHaveBeenNthCalledWith(14, 'execute_curl', {
       request: { curl: 'curl https://api.example.com', timeout_ms: 30_000, follow_redirects: true },
     })
-    expect(invokeMock).toHaveBeenNthCalledWith(14, 'start_curl_job', {
+    expect(invokeMock).toHaveBeenNthCalledWith(15, 'start_curl_job', {
       request: {
         curls: ['curl https://api.example.com'],
         timeout_ms: null,
@@ -179,10 +201,10 @@ describe('Tauri command wrappers', () => {
         confirm_large_batch: false,
       },
     })
-    expect(invokeMock).toHaveBeenNthCalledWith(15, 'get_curl_job_results', {
+    expect(invokeMock).toHaveBeenNthCalledWith(16, 'get_curl_job_results', {
       request: { job_id: 'job-1' },
     })
-    expect(invokeMock).toHaveBeenNthCalledWith(16, 'cancel_curl_job', {
+    expect(invokeMock).toHaveBeenNthCalledWith(17, 'cancel_curl_job', {
       request: { job_id: 'job-1' },
     })
   })

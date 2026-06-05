@@ -208,6 +208,94 @@ pub struct ValuesGroup {
     pub parent_items: Vec<ParentItem>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ValuesExplorerSortMode {
+    Frequency,
+    Alphabetical,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ValuesExplorerFilterMatchMode {
+    Contains,
+    Exact,
+}
+
+fn default_values_filter_match_mode() -> ValuesExplorerFilterMatchMode {
+    ValuesExplorerFilterMatchMode::Contains
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ValuesExplorerFilter {
+    pub field_path: String,
+    pub value: String,
+    #[serde(default = "default_values_filter_match_mode")]
+    pub match_mode: ValuesExplorerFilterMatchMode,
+    #[serde(default = "default_case_sensitive")]
+    pub case_sensitive: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ValuesExplorerAnalysisRequest {
+    pub json_string: String,
+    pub selected_fields: Vec<String>,
+    pub filter: Option<ValuesExplorerFilter>,
+    #[serde(default = "default_values_explorer_sort_mode")]
+    pub sort_mode: ValuesExplorerSortMode,
+    /// Page for duplicate value groups.
+    pub page: usize,
+    /// Optional page for the all-results value groups. Defaults to `page` for
+    /// callers that only know about the older single-page request shape.
+    #[serde(default)]
+    pub groups_page: Option<usize>,
+    pub page_size: usize,
+    #[serde(default)]
+    pub flatten: bool,
+}
+
+fn default_values_explorer_sort_mode() -> ValuesExplorerSortMode {
+    ValuesExplorerSortMode::Frequency
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ValuesExplorerAnalysisResponse {
+    pub field_path: String,
+    pub field_paths: Vec<String>,
+    pub is_composite: bool,
+    pub total_items: usize,
+    pub unique_values: usize,
+    pub duplicate_group_count: usize,
+    pub has_duplicates: bool,
+    pub duplicates: Vec<ValuesExplorerGroup>,
+    pub all_field_values: Vec<ValuesExplorerGroup>,
+    pub page: usize,
+    pub page_size: usize,
+    pub total_pages: usize,
+    pub has_next_page: bool,
+    pub groups_page: usize,
+    pub groups_total_pages: usize,
+    pub sort_mode: ValuesExplorerSortMode,
+    pub filter: Option<ValuesExplorerFilter>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ValuesExplorerGroup {
+    pub value: serde_json::Value,
+    pub display_value: String,
+    pub count: usize,
+    pub is_duplicate: bool,
+    pub items: Vec<ValuesExplorerItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ValuesExplorerItem {
+    pub index: usize,
+    pub item: serde_json::Value,
+    pub source_path: Option<String>,
+    pub field_value: serde_json::Value,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DuplicateFilter {
     pub field_path: String,

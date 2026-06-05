@@ -7,6 +7,7 @@ import type {
   ParentItem,
 } from '../../../lib/commands'
 import { formatInteger } from '../../common/format'
+import { Badge } from '../../common/Badge'
 import { TableScroll } from '../../common/TableScroll'
 
 export type AdvancedDuplicateResult =
@@ -35,9 +36,9 @@ export function AdvancedDuplicatesView({ duplicateResult }: { duplicateResult: A
           ) : null}
         </div>
         <div className="result-heading-actions">
-          <span className={groupCount > 0 ? 'status-badge warning' : 'status-badge'}>
+          <Badge variant={groupCount > 0 ? 'warning' : 'success'}>
             {groupCount > 0 ? `${formatInteger(groupCount)} duplicate group${groupCount === 1 ? '' : 's'}` : 'No duplicates'}
-          </span>
+          </Badge>
         </div>
       </div>
 

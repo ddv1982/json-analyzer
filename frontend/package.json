@@ -1,7 +1,7 @@
 {
   "name": "json-analyzer-frontend",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
@@ -14,13 +14,16 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.0",
     "@tauri-apps/api": "^2.11.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/node": "^25.9.1",
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
@@ -28,7 +31,6 @@
     "oxlint": "^1.68.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vitest": "^4.1.8",
-    "@types/node": "^25.9.1"
+    "vitest": "^4.1.8"
   }
 }

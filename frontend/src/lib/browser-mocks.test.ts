@@ -11,6 +11,7 @@ import type {
   CurlJobResultsResponse,
   CurlParseResponse,
   ValuesAnalysisResponse,
+  ValuesExplorerAnalysisResponse,
   ValuesFieldDiscoveryResponse,
 } from './commands'
 import { sampleJsonInput } from './sample-data'
@@ -201,6 +202,93 @@ describe('browser mock command contracts', () => {
       display_value: 'Support',
       count: 2,
       source_paths: ['5.department', '6.department'],
+    })
+  })
+
+  it('browser mocks expose the target Values Explorer endpoint with independent result pagination', async () => {
+    const values = await browserMockInvoke<ValuesExplorerAnalysisResponse>('analyze_values_explorer', {
+      request: {
+        json_string: sampleJsonInput,
+        selected_fields: ['[].department'],
+        filter: null,
+        sort_mode: 'frequency',
+        page: 1,
+        groups_page: 2,
+        page_size: 1,
+      },
+    })
+
+    expect(values).toMatchObject({
+      field_paths: ['[].department'],
+      total_items: 8,
+      unique_values: 3,
+      duplicate_group_count: 3,
+      page: 1,
+      groups_page: 2,
+      total_pages: 3,
+      groups_total_pages: 3,
+    })
+    expect(values.duplicates[0]).toMatchObject({
+      display_value: 'Engineering',
+      count: 4,
+      is_duplicate: true,
+    })
+    expect(values.all_field_values[0]).toMatchObject({
+      display_value: 'Design',
+      count: 2,
+    })
+  })
+
+  it('browser mocks apply target Values Explorer field filters to parent records', async () => {
+    const values = await browserMockInvoke<ValuesExplorerAnalysisResponse>('analyze_values_explorer', {
+      request: {
+        json_string: sampleJsonInput,
+        selected_fields: ['[].department'],
+        filter: {
+          field_path: '[].status',
+          value: 'active',
+          match_mode: 'exact',
+          case_sensitive: false,
+        },
+        sort_mode: 'frequency',
+        page: 1,
+        groups_page: 1,
+        page_size: 10,
+      },
+    })
+
+    expect(values).toMatchObject({
+      total_items: 6,
+      unique_values: 3,
+      duplicate_group_count: 2,
+      has_duplicates: true,
+    })
+    expect(values.duplicates.map((group) => [group.display_value, group.count])).toEqual([
+      ['Engineering', 3],
+      ['Design', 2],
+    ])
+    expect(values.all_field_values.find((group) => group.display_value === 'Support')).toMatchObject({
+      count: 1,
+      is_duplicate: false,
+    })
+  })
+
+  it('browser mocks validate target Values Explorer groups_page requests like the Rust service', async () => {
+    await expect(
+      browserMockInvoke('analyze_values_explorer', {
+        request: {
+          json_string: sampleJsonInput,
+          selected_fields: ['[].department'],
+          filter: null,
+          sort_mode: 'frequency',
+          page: 1,
+          groups_page: 0,
+          page_size: 25,
+        },
+      }),
+    ).rejects.toMatchObject({
+      error_type: 'invalid_request',
+      detail: 'groups_page must be greater than or equal to 1',
     })
   })
 

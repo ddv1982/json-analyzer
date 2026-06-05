@@ -24,6 +24,7 @@ interface MultiSelectDropdownProps {
   error?: string | null
   emptyMessage?: string
   disabled?: boolean
+  showSearch?: boolean
 }
 
 function includesQuery(option: MultiSelectOption, query: string) {
@@ -66,6 +67,7 @@ export function MultiSelectDropdown({
   error = null,
   emptyMessage = 'No options found.',
   disabled = false,
+  showSearch = true,
 }: MultiSelectDropdownProps) {
   const baseId = useStableId(id, 'multi-select')
   const listboxId = `${baseId}-listbox`
@@ -255,28 +257,34 @@ export function MultiSelectDropdown({
       {isOpen ? (
         <div ref={popoverRef} className="dropdown-popover">
           <div className="dropdown-search-row">
-            <input
-              className="text-input dropdown-search"
-              type="search"
-              value={search}
-              aria-label={`Search ${label}`}
-              aria-controls={listboxId}
-              aria-activedescendant={activeOptionId}
-              placeholder={searchPlaceholder}
-              onChange={(event) => {
-                updateSearch(event.target.value)
-                setActiveIndex(0)
-              }}
-              onKeyDown={(event) => handleOptionKeyDown(event, { allowSpaceToggle: false })}
-            />
+            {showSearch ? (
+              <input
+                className="text-input dropdown-search"
+                type="search"
+                value={search}
+                aria-label={`Search ${label}`}
+                aria-controls={listboxId}
+                aria-activedescendant={activeOptionId}
+                placeholder={searchPlaceholder}
+                onChange={(event) => {
+                  updateSearch(event.target.value)
+                  setActiveIndex(0)
+                }}
+                onKeyDown={(event) => handleOptionKeyDown(event, { allowSpaceToggle: false })}
+              />
+            ) : (
+              <p className="dropdown-selected-count">
+                {selectedCount} selected{typeof maxSelected === 'number' ? ` (max ${maxSelected})` : ''}
+              </p>
+            )}
             {selectedCount > 0 ? (
               <button type="button" className="dropdown-clear" onClick={() => onChange([])}>
-                Clear all
+                {showSearch ? 'Clear all' : 'Clear'}
               </button>
             ) : null}
           </div>
 
-          {typeof maxSelected === 'number' ? (
+          {showSearch && typeof maxSelected === 'number' ? (
             <p id={helperTextId} className="dropdown-help" role={isAtLimit ? 'status' : undefined}>
               {selectedCount} of {maxSelected} selected{isAtLimit ? '. Limit reached; deselect an option before choosing another.' : ''}
             </p>

@@ -1,6 +1,7 @@
 import type { MinMaxFilledResult, MinMaxRecord, StatisticsAnalysis } from '../../../lib/commands'
 import { formatDecimal, formatInteger, formatPercent } from '../../common/format'
 import { Metric } from '../../common/Metric'
+import { Badge } from '../../common/Badge'
 
 export function StatisticsView({
   statistics,
@@ -51,14 +52,14 @@ export function StatisticsView({
             <p className="muted">Analysis path: {minMaxFilled.analysis_path}</p>
           </div>
           <div className="input-status-group" aria-label="Completeness summary">
-            <span className={minMaxFilled.has_records ? 'status-badge info' : 'status-badge warning'}>
+            <Badge variant={minMaxFilled.has_records ? 'info' : 'warning'}>
               {minMaxFilled.has_records ? `${formatInteger(minMaxFilled.total_records)} records` : 'No records'}
-            </span>
+            </Badge>
             {maxRecord ? (
-              <span className="status-badge">Max: {formatInteger(maxRecord.filled_count)} fields</span>
+              <Badge variant="success">Max: {formatInteger(maxRecord.filled_count)} fields</Badge>
             ) : null}
             {minRecord ? (
-              <span className="status-badge">Min: {formatInteger(minRecord.filled_count)} fields</span>
+              <Badge variant="success">Min: {formatInteger(minRecord.filled_count)} fields</Badge>
             ) : null}
           </div>
         </div>
@@ -104,10 +105,10 @@ function CompletenessRecord({
           <h4>{title}</h4>
           <p className="muted">Record index {formatInteger(record.index)}</p>
         </div>
-        <span className="status-badge info">
+        <Badge variant="info">
           {formatInteger(record.filled_count)}/{formatInteger(record.total_fields)} fields ·{' '}
           {formatPercent(record.completeness_pct)}
-        </span>
+        </Badge>
       </div>
       {preview === undefined ? (
         <p className="muted">Normalized JSON preview unavailable for this analysis path.</p>

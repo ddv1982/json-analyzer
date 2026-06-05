@@ -12,6 +12,8 @@ import {
 } from '../../../lib/commands'
 import { ComboboxSelect, type ComboboxOption } from '../../common/ComboboxSelect'
 import { formatInteger } from '../../common/format'
+import { Badge } from '../../common/Badge'
+import { Button } from '../../common/Button'
 import { MultiSelectDropdown, type MultiSelectOption } from '../../common/MultiSelectDropdown'
 import { AdvancedDuplicatesView, type AdvancedDuplicateResult } from './AdvancedDuplicatesView'
 
@@ -271,7 +273,7 @@ export function AdvancedDuplicateWorkflow({ jsonInput, initialConfig }: { jsonIn
             <h3>Find duplicates by field</h3>
             <p className="muted">Select one field for value duplicates or combine fields to find repeated records.</p>
           </div>
-          <span className="status-badge">Loading</span>
+          <Badge variant="success">Loading</Badge>
         </div>
         <p className="muted" role="status">Loading duplicate workflow…</p>
       </section>
@@ -286,7 +288,7 @@ export function AdvancedDuplicateWorkflow({ jsonInput, initialConfig }: { jsonIn
             <h3>Find duplicates by field</h3>
             <p className="muted">Select one field for value duplicates or combine fields to find repeated records.</p>
           </div>
-          <span className="status-badge warning">Disabled</span>
+          <Badge variant="warning">Disabled</Badge>
         </div>
         <div className="inline-empty-state duplicate-empty-state" role="status">
           <strong>Field duplicate analysis is disabled</strong>
@@ -303,7 +305,7 @@ export function AdvancedDuplicateWorkflow({ jsonInput, initialConfig }: { jsonIn
           <h3>Find duplicates by field</h3>
           <p className="muted">Select one field for value duplicates or combine fields to find repeated records.</p>
         </div>
-        <span className="status-badge">{workflowMode}</span>
+        <Badge variant="success">{workflowMode}</Badge>
       </div>
 
       <div className="values-layout duplicate-workflow-layout">
@@ -404,16 +406,15 @@ export function AdvancedDuplicateWorkflow({ jsonInput, initialConfig }: { jsonIn
           />
           Parent/source details
         </label>
-        <button
-          type="button"
-          className="primary-action"
+        <Button
+          variant="primary"
           disabled={selectedFields.length === 0 || isDuplicateAnalyzing || Boolean(duplicateValidationMessage)}
           onClick={() => {
             void runDuplicateAnalysis(1)
           }}
         >
           {isDuplicateAnalyzing ? 'Finding duplicates…' : 'Find Duplicates'}
-        </button>
+        </Button>
       </div>
 
       {duplicatePageSizeClamped ? (

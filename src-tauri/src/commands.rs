@@ -6,15 +6,15 @@ use json_analyzer::{
     CurlParseRequest, CurlParseResponse, CurlStartJobRequest, DuplicatesResponse, FieldsResponse,
     FindDuplicatesRequest, FormatRequest, FormatResponse, GetFieldsRequest, HealthResponse,
     JsonAnalyzerService, MinMaxFilledResult, MinMaxRequest, ValidateRequest, ValidateResponse,
-    ValuesAnalysisRequest, ValuesAnalysisResponse, ValuesFieldDiscoveryRequest,
-    ValuesFieldDiscoveryResponse,
+    ValuesAnalysisRequest, ValuesAnalysisResponse, ValuesExplorerAnalysisRequest,
+    ValuesExplorerAnalysisResponse, ValuesFieldDiscoveryRequest, ValuesFieldDiscoveryResponse,
 };
 use tauri::State;
 
 pub(crate) type CommandResult<T> = Result<T, AppError>;
 
 #[cfg(test)]
-const REQUIRED_COMMANDS: [&str; 18] = [
+const REQUIRED_COMMANDS: [&str; 19] = [
     "validate_json",
     "format_json",
     "analyze_json",
@@ -23,6 +23,7 @@ const REQUIRED_COMMANDS: [&str; 18] = [
     "min_max_filled",
     "discover_values_fields",
     "analyze_values",
+    "analyze_values_explorer",
     "analyze_advanced_field_duplicates",
     "analyze_composite_duplicates",
     "parse_curl",
@@ -97,6 +98,14 @@ pub(crate) fn analyze_values(
     request: ValuesAnalysisRequest,
 ) -> CommandResult<ValuesAnalysisResponse> {
     analyze_values_with_service(service.inner(), request)
+}
+
+#[tauri::command]
+pub(crate) fn analyze_values_explorer(
+    service: State<'_, JsonAnalyzerService>,
+    request: ValuesExplorerAnalysisRequest,
+) -> CommandResult<ValuesExplorerAnalysisResponse> {
+    analyze_values_explorer_with_service(service.inner(), request)
 }
 
 #[tauri::command]
@@ -237,6 +246,13 @@ fn analyze_values_with_service(
     request: ValuesAnalysisRequest,
 ) -> CommandResult<ValuesAnalysisResponse> {
     service.analyze_values(request)
+}
+
+fn analyze_values_explorer_with_service(
+    service: &JsonAnalyzerService,
+    request: ValuesExplorerAnalysisRequest,
+) -> CommandResult<ValuesExplorerAnalysisResponse> {
+    service.analyze_values_explorer(request)
 }
 
 fn analyze_advanced_field_duplicates_with_service(

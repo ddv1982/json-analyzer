@@ -1,13 +1,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { expect, vi } from 'vitest'
-import { browserMockInvoke } from '../lib/browser-mocks'
+import { browserMockInvoke, mockValuesExplorerResponse } from '../lib/browser-mocks'
+import { createAppQueryClient } from '../app/query-client'
 import { sampleJsonInput as sampleJsonInputFixture } from '../lib/sample-data'
+import { resetAppUiStoreForTests } from '../state/useAppUiStore'
 import { setMockPrefersColorScheme as setMockPrefersColorSchemeInSetup } from './setup'
 import {
   analyzeAdvancedFieldDuplicates,
   analyzeCompositeDuplicates,
   analyzeJson,
   analyzeValues,
+  analyzeValuesExplorer,
   cancelCurlJob,
   discoverValuesFields,
   executeCurl,
@@ -33,6 +36,8 @@ import type {
   ValidateResponse,
   ValuesAnalysisRequest,
   ValuesAnalysisResponse,
+  ValuesExplorerAnalysisRequest,
+  ValuesExplorerAnalysisResponse,
   ValuesFieldDiscoveryResponse,
 } from '../lib/commands'
 
@@ -43,6 +48,8 @@ export type {
   ValidateResponse,
   ValuesAnalysisRequest,
   ValuesAnalysisResponse,
+  ValuesExplorerAnalysisRequest,
+  ValuesExplorerAnalysisResponse,
 } from '../lib/commands'
 
 export function setMockPrefersColorScheme(theme: 'light' | 'dark') {
@@ -59,6 +66,7 @@ vi.mock('../lib/commands', async (importOriginal) => {
     discoverValuesFields: vi.fn(),
     getConfig: vi.fn(),
     analyzeValues: vi.fn(),
+    analyzeValuesExplorer: vi.fn(),
     analyzeAdvancedFieldDuplicates: vi.fn(),
     analyzeCompositeDuplicates: vi.fn(),
     executeCurl: vi.fn(),
@@ -78,6 +86,7 @@ export const analyzeJsonMock = vi.mocked(analyzeJson)
 export const discoverValuesFieldsMock = vi.mocked(discoverValuesFields)
 export const getConfigMock = vi.mocked(getConfig)
 export const analyzeValuesMock = vi.mocked(analyzeValues)
+export const analyzeValuesExplorerMock = vi.mocked(analyzeValuesExplorer)
 export const analyzeAdvancedFieldDuplicatesMock = vi.mocked(analyzeAdvancedFieldDuplicates)
 export const analyzeCompositeDuplicatesMock = vi.mocked(analyzeCompositeDuplicates)
 export const executeCurlMock = vi.mocked(executeCurl)
@@ -344,13 +353,15 @@ export function valuesResponse(request: ValuesAnalysisRequest): ValuesAnalysisRe
             count: 4,
             source_paths: ['0.department', '1.department', '3.department', '4.department'],
             record_indexes: [0, 1, 3, 4],
-            parent_items: [
-              {
-                record_index: 0,
-                source_path: '0',
-                summary: { id: 1, name: 'Alice', department: 'Engineering' },
-              },
-            ],
+            parent_items: request.include_parent_items
+              ? [
+                  {
+                    record_index: 0,
+                    source_path: '0',
+                    summary: { id: 1, name: 'Alice', department: 'Engineering' },
+                  },
+                ]
+              : [],
           },
           {
             key: request.selected_fields.length > 1 ? ['Design', 'Designer'] : ['Design'],
@@ -364,6 +375,10 @@ export function valuesResponse(request: ValuesAnalysisRequest): ValuesAnalysisRe
           },
         ],
   }
+}
+
+export function valuesExplorerResponse(request: ValuesExplorerAnalysisRequest): ValuesExplorerAnalysisResponse {
+  return mockValuesExplorerResponse(request)
 }
 
 export function advancedFieldDuplicateResponse(request: AdvancedFieldDuplicatesRequest): AdvancedFieldDuplicatesResponse {
@@ -453,12 +468,14 @@ export function setupDefaultAppMocks() {
     throw new Error('App test fixture analysis is not loaded. Call loadFixtureAnalysis() in beforeAll before setupDefaultAppMocks().')
   }
 
+  resetAppUiStoreForTests()
   validateJsonMock.mockReset()
   formatJsonMock.mockReset()
   analyzeJsonMock.mockReset()
   discoverValuesFieldsMock.mockReset()
   getConfigMock.mockReset()
   analyzeValuesMock.mockReset()
+  analyzeValuesExplorerMock.mockReset()
   analyzeAdvancedFieldDuplicatesMock.mockReset()
   analyzeCompositeDuplicatesMock.mockReset()
   executeCurlMock.mockReset()
@@ -473,6 +490,9 @@ export function setupDefaultAppMocks() {
   getConfigMock.mockResolvedValue(appConfig)
   discoverValuesFieldsMock.mockResolvedValue({ fields: valuesFields })
   analyzeValuesMock.mockImplementation((request) => Promise.resolve(valuesResponse(request)))
+  analyzeValuesExplorerMock.mockImplementation((request) =>
+    browserMockInvoke('analyze_values_explorer', { request }),
+  )
   analyzeAdvancedFieldDuplicatesMock.mockImplementation((request) => Promise.resolve(advancedFieldDuplicateResponse(request)))
   analyzeCompositeDuplicatesMock.mockImplementation((request) => Promise.resolve(compositeDuplicateResponse(request)))
   executeCurlMock.mockResolvedValue(curlExecutionOk)
@@ -483,7 +503,7 @@ export function setupDefaultAppMocks() {
 }
 
 export function renderApp() {
-  return render(<App />)
+  return render(<App queryClient={createAppQueryClient()} />)
 }
 
 export async function unlockCurlBatchMode() {

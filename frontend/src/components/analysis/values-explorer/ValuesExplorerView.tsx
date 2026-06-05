@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  analyzeValues,
+  analyzeValuesExplorer,
   discoverValuesFields,
   getConfig,
   normalizeCommandError,
   type AppConfig,
-  type ParentItem,
   type ProblemDetails,
-  type ValuesAnalysisResponse,
+  type ValuesExplorerAnalysisResponse,
+  type ValuesExplorerFilter,
+  type ValuesExplorerGroup,
+  type ValuesExplorerSortMode,
   type ValuesFieldInfo,
-  type ValuesGroup,
-  type ValuesSortBy,
 } from '../../../lib/commands'
 import { useClipboardCopy } from '../../../lib/clipboard'
 import { formatInteger } from '../../common/format'
@@ -26,8 +26,13 @@ const FALLBACK_VALUES_EXPLORER_LIMITS: AppConfig['limits']['values_explorer'] = 
   max_match_combinations_per_request: 100_000,
 }
 
-const DEFAULT_SORT_BY: ValuesSortBy = 'count'
-const DEFAULT_SORT_DIRECTION = 'desc' as const
+const FILTER_INPUT_DEBOUNCE_MS = 250
+const DEFAULT_SORT_MODE: ValuesExplorerSortMode = 'frequency'
+
+type ValuesSectionKey = 'duplicates' | 'all'
+type ExpandedGroupsState = Record<ValuesSectionKey, string[]>
+
+const EMPTY_EXPANDED_GROUPS: ExpandedGroupsState = { duplicates: [], all: [] }
 
 export function ValuesExplorerView({
   jsonInput,
@@ -36,38 +41,47 @@ export function ValuesExplorerView({
   jsonInput: string
   flattenNestedArrays: boolean
 }) {
-  const [fieldSearch, setFieldSearch] = useState('')
-  const [fields, setFields] = useState<ValuesFieldInfo[]>([])
-  const [knownFieldsByPath, setKnownFieldsByPath] = useState<Record<string, ValuesFieldInfo>>({})
-  const [selectedFields, setSelectedFields] = useState<string[]>([])
-  const [valueSearch, setValueSearch] = useState('')
-  const [sortBy, setSortBy] = useState<ValuesSortBy>(DEFAULT_SORT_BY)
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(DEFAULT_SORT_DIRECTION)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(FALLBACK_VALUES_EXPLORER_LIMITS.default_page_size)
-  const [includeParentItems, setIncludeParentItems] = useState(true)
-  const [showDuplicateGroupsOnly, setShowDuplicateGroupsOnly] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(true)
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [isConfigLoaded, setIsConfigLoaded] = useState(false)
+  const [fields, setFields] = useState<ValuesFieldInfo[]>([])
+  const [knownFieldsByPath, setKnownFieldsByPath] = useState<Record<string, ValuesFieldInfo>>({})
+  const [fieldSearch, setFieldSearch] = useState('')
+  const [selectedFields, setSelectedFields] = useState<string[]>([])
+  const [draftFilterField, setDraftFilterField] = useState('')
+  const [draftFilterValue, setDraftFilterValue] = useState('')
+  const [effectiveFilter, setEffectiveFilter] = useState<ValuesExplorerFilter | null>(null)
+  const [sortMode, setSortMode] = useState<ValuesExplorerSortMode>(DEFAULT_SORT_MODE)
+  const [duplicatePage, setDuplicatePage] = useState(1)
+  const [groupsPage, setGroupsPage] = useState(1)
+  const [pageSize, setPageSize] = useState(FALLBACK_VALUES_EXPLORER_LIMITS.default_page_size)
+  const [result, setResult] = useState<ValuesExplorerAnalysisResponse | null>(null)
   const [discoveryError, setDiscoveryError] = useState<ProblemDetails | null>(null)
   const [analysisError, setAnalysisError] = useState<ProblemDetails | null>(null)
   const [isDiscovering, setIsDiscovering] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [valuesResult, setValuesResult] = useState<ValuesAnalysisResponse | null>(null)
   const [selectionLimitMessage, setSelectionLimitMessage] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
-  const { copiedKey, errorKey, errorMessage, copy } = useClipboardCopy(1800)
+  const [expandedGroups, setExpandedGroups] = useState<ExpandedGroupsState>(EMPTY_EXPANDED_GROUPS)
   const discoveryRequestIdRef = useRef(0)
   const analysisRequestIdRef = useRef(0)
-  const knownFieldsRequestKeyRef = useRef(`${jsonInput}\u0000${flattenNestedArrays}`)
+  const filterDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { copiedKey, errorKey, errorMessage, copy } = useClipboardCopy(1800)
+
   const valuesLimits = config?.limits.values_explorer ?? FALLBACK_VALUES_EXPLORER_LIMITS
   const valuesExplorerDisabled = isConfigLoaded && config?.features.values_explorer === false
   const canUseValuesExplorer = isConfigLoaded && !valuesExplorerDisabled
-  const pageSizes = valuesLimits.page_sizes.length > 0 ? valuesLimits.page_sizes : FALLBACK_VALUES_EXPLORER_LIMITS.page_sizes
   const maxSelectedFields = valuesLimits.max_selected_fields
-  const valuesPageSize = Math.min(pageSize, valuesLimits.max_page_size)
-  const valuesPageSizeClamped = valuesPageSize < pageSize
-  const selectionValidationMessage = selectedFields.length > maxSelectedFields ? `Select up to ${maxSelectedFields} fields for one Values Explorer request.` : null
+  const pageSizes = valuesLimits.page_sizes.length > 0 ? valuesLimits.page_sizes : FALLBACK_VALUES_EXPLORER_LIMITS.page_sizes
+  const fieldOptions = useMemo<MultiSelectOption[]>(
+    () => fields.map((field) => ({
+      value: field.field_path,
+      label: field.label,
+      description: field.field_path,
+      metadata: [`${formatInteger(field.unique_value_count)} unique`, `${formatInteger(field.non_null_count)} filled`],
+    })),
+    [fields],
+  )
 
   useEffect(() => {
     let canceled = false
@@ -92,18 +106,28 @@ export function ValuesExplorerView({
   }, [])
 
   useEffect(() => {
+    analysisRequestIdRef.current += 1
+    setIsCollapsed(true)
+    setSelectedFields([])
+    setDraftFilterField('')
+    setDraftFilterValue('')
+    setEffectiveFilter(null)
+    setSortMode(DEFAULT_SORT_MODE)
+    setDuplicatePage(1)
+    setGroupsPage(1)
+    setResult(null)
+    setAnalysisError(null)
+    setIsAnalyzing(false)
+    setExpandedGroups(EMPTY_EXPANDED_GROUPS)
+  }, [jsonInput, flattenNestedArrays])
+
+  useEffect(() => {
     const requestId = discoveryRequestIdRef.current + 1
-    const requestKey = `${jsonInput}\u0000${flattenNestedArrays}`
-    const resetKnownFields = knownFieldsRequestKeyRef.current !== requestKey
     discoveryRequestIdRef.current = requestId
-    knownFieldsRequestKeyRef.current = requestKey
-    if (resetKnownFields) {
-      setKnownFieldsByPath({})
-    }
 
     if (!canUseValuesExplorer) {
       setFields([])
-      setSelectedFields([])
+      setKnownFieldsByPath({})
       setDiscoveryError(null)
       setIsDiscovering(false)
       return
@@ -124,17 +148,11 @@ export function ValuesExplorerView({
         }
         setFields(response.fields)
         setKnownFieldsByPath((current) => {
-          const nextFields: Record<string, ValuesFieldInfo> = resetKnownFields ? {} : { ...current }
+          const next = { ...current }
           for (const field of response.fields) {
-            nextFields[field.field_path] = field
+            next[field.field_path] = field
           }
-          return nextFields
-        })
-        setSelectedFields((current) => {
-          if (current.length > 0 || response.fields.length === 0) {
-            return current
-          }
-          return [response.fields[0].field_path]
+          return next
         })
       })
       .catch((unknownError: unknown) => {
@@ -150,39 +168,65 @@ export function ValuesExplorerView({
       })
   }, [canUseValuesExplorer, fieldSearch, flattenNestedArrays, jsonInput])
 
-  useEffect(() => {
-    if (!canUseValuesExplorer || selectedFields.length === 0 || selectedFields.length > maxSelectedFields) {
+  useEffect(() => () => {
+    if (filterDebounceRef.current) {
+      clearTimeout(filterDebounceRef.current)
+    }
+  }, [])
+
+  function runAnalysis(next: {
+    fields?: string[]
+    filter?: ValuesExplorerFilter | null
+    sort?: ValuesExplorerSortMode
+    duplicatePage?: number
+    groupsPage?: number
+    pageSize?: number
+  }) {
+    const nextFields = next.fields ?? selectedFields
+    const nextFilter = next.filter === undefined ? effectiveFilter : next.filter
+    const nextSort = next.sort ?? sortMode
+    const nextDuplicatePage = next.duplicatePage ?? duplicatePage
+    const nextGroupsPage = next.groupsPage ?? groupsPage
+    const nextPageSize = Math.min(next.pageSize ?? pageSize, valuesLimits.max_page_size)
+
+    if (!canUseValuesExplorer || nextFields.length === 0 || nextFields.length > maxSelectedFields) {
       analysisRequestIdRef.current += 1
-      setValuesResult(null)
+      setResult(null)
       setAnalysisError(null)
       setIsAnalyzing(false)
+      setExpandedGroups(EMPTY_EXPANDED_GROUPS)
       return
     }
 
     const requestId = analysisRequestIdRef.current + 1
     analysisRequestIdRef.current = requestId
     setIsAnalyzing(true)
-    setValuesResult(null)
     setAnalysisError(null)
+    setResult(null)
+    setExpandedGroups(EMPTY_EXPANDED_GROUPS)
 
-    analyzeValues({
+    analyzeValuesExplorer({
       json_string: jsonInput,
-      selected_fields: selectedFields,
-      search: valueSearch.trim() || null,
-      sort: { by: sortBy, direction: sortDirection },
-      page,
-      page_size: valuesPageSize,
-      include_parent_items: includeParentItems,
+      selected_fields: nextFields,
+      filter: nextFilter,
+      sort_mode: nextSort,
+      page: nextDuplicatePage,
+      groups_page: nextGroupsPage,
+      page_size: nextPageSize,
       flatten: flattenNestedArrays,
     })
       .then((response) => {
         if (analysisRequestIdRef.current === requestId) {
-          setValuesResult(response)
+          setResult(response)
+          setDuplicatePage(response.page)
+          setGroupsPage(response.groups_page)
+          setPageSize(response.page_size)
+          setEffectiveFilter(response.filter ?? nextFilter)
         }
       })
       .catch((unknownError: unknown) => {
         if (analysisRequestIdRef.current === requestId) {
-          setValuesResult(null)
+          setResult(null)
           setAnalysisError(normalizeCommandError(unknownError))
         }
       })
@@ -191,547 +235,610 @@ export function ValuesExplorerView({
           setIsAnalyzing(false)
         }
       })
-  }, [canUseValuesExplorer, flattenNestedArrays, includeParentItems, jsonInput, maxSelectedFields, page, selectedFields, sortBy, sortDirection, valueSearch, valuesPageSize])
-
-  const selectedFieldInfos = useMemo(
-    () => selectedFields.map((fieldPath) => knownFieldsByPath[fieldPath] ?? fields.find((field) => field.field_path === fieldPath) ?? fieldSummaryFallback(fieldPath)),
-    [fields, knownFieldsByPath, selectedFields],
-  )
-  const fieldOptions = useMemo<MultiSelectOption[]>(
-    () => fields.map((field) => ({
-      value: field.field_path,
-      label: field.label,
-      description: field.field_path,
-      metadata: [
-        `${formatInteger(field.unique_value_count)} unique`,
-        `${formatInteger(field.non_null_count)} filled`,
-        field.type_hints.length > 0 ? `Types: ${field.type_hints.join(', ')}` : 'Types: unknown',
-      ],
-    })),
-    [fields],
-  )
-  const totalPages = valuesResult ? Math.max(1, Math.ceil(valuesResult.total_groups / valuesPageSize)) : 1
-  const duplicateGroupsOnPage = useMemo(() => valuesResult?.groups.filter((group) => group.count > 1) ?? [], [valuesResult])
-  const displayedGroups = showDuplicateGroupsOnly ? duplicateGroupsOnPage : (valuesResult?.groups ?? [])
-  const summary = useMemo(() => buildValuesSummary(valuesResult), [valuesResult])
+  }
 
   function handleSelectedFieldsChange(nextSelectedFields: string[]) {
     setSelectionLimitMessage(null)
     setActionMessage(null)
-    setSelectedFields((current) => {
-      if (nextSelectedFields.length > maxSelectedFields) {
-        setSelectionLimitMessage(`Select up to ${maxSelectedFields} fields for one Values Explorer request.`)
-        return current
-      }
-
-      if (areStringArraysEqual(current, nextSelectedFields)) {
-        return current
-      }
-
-      setPage(1)
-      return nextSelectedFields
-    })
+    if (nextSelectedFields.length > maxSelectedFields) {
+      setSelectionLimitMessage(`Maximum of ${maxSelectedFields} fields can be selected at once.`)
+      return
+    }
+    setSelectedFields(nextSelectedFields)
+    setDuplicatePage(1)
+    setGroupsPage(1)
+    if (nextSelectedFields.length === 0) {
+      analysisRequestIdRef.current += 1
+      setResult(null)
+      setAnalysisError(null)
+      setEffectiveFilter(null)
+      setIsAnalyzing(false)
+      setExpandedGroups(EMPTY_EXPANDED_GROUPS)
+      return
+    }
+    runAnalysis({ fields: nextSelectedFields, duplicatePage: 1, groupsPage: 1 })
   }
 
   function handleSelectionLimit(maximumFields: number) {
-    setSelectionLimitMessage(`Select up to ${maximumFields} fields for one Values Explorer request.`)
+    setSelectionLimitMessage(`Maximum of ${maximumFields} fields can be selected at once.`)
   }
 
-  function clearValuesResults() {
+  function activeDraftFilter(field = draftFilterField, value = draftFilterValue): ValuesExplorerFilter | null {
+    const normalizedField = field.trim()
+    const normalizedValue = value.trim()
+    if (!normalizedField || !normalizedValue) {
+      return null
+    }
+    return {
+      field_path: normalizedField,
+      value: normalizedValue,
+      match_mode: 'contains',
+      case_sensitive: false,
+    }
+  }
+
+  function changeFilterField(field: string) {
+    if (filterDebounceRef.current) {
+      clearTimeout(filterDebounceRef.current)
+      filterDebounceRef.current = null
+    }
+    setDraftFilterField(field)
+    setDuplicatePage(1)
+    setGroupsPage(1)
+    const nextFilter = activeDraftFilter(field, draftFilterValue)
+    setEffectiveFilter(nextFilter)
+    runAnalysis({ filter: nextFilter, duplicatePage: 1, groupsPage: 1 })
+  }
+
+  function changeFilterValue(value: string) {
+    setDraftFilterValue(value)
+    setDuplicatePage(1)
+    setGroupsPage(1)
+    if (filterDebounceRef.current) {
+      clearTimeout(filterDebounceRef.current)
+    }
+    filterDebounceRef.current = setTimeout(() => {
+      const nextFilter = activeDraftFilter(draftFilterField, value)
+      setEffectiveFilter(nextFilter)
+      runAnalysis({ filter: nextFilter, duplicatePage: 1, groupsPage: 1 })
+      filterDebounceRef.current = null
+    }, FILTER_INPUT_DEBOUNCE_MS)
+  }
+
+  function clearFilter() {
+    if (filterDebounceRef.current) {
+      clearTimeout(filterDebounceRef.current)
+      filterDebounceRef.current = null
+    }
+    setDraftFilterField('')
+    setDraftFilterValue('')
+    setEffectiveFilter(null)
+    setDuplicatePage(1)
+    setGroupsPage(1)
+    runAnalysis({ filter: null, duplicatePage: 1, groupsPage: 1 })
+  }
+
+  function changeSort(nextSort: ValuesExplorerSortMode) {
+    setSortMode(nextSort)
+    setDuplicatePage(1)
+    setGroupsPage(1)
+    runAnalysis({ sort: nextSort, duplicatePage: 1, groupsPage: 1 })
+  }
+
+  function changeDuplicatePage(nextPage: number) {
+    const normalizedPage = Math.max(1, nextPage)
+    setDuplicatePage(normalizedPage)
+    runAnalysis({ duplicatePage: normalizedPage })
+  }
+
+  function changeGroupsPage(nextPage: number) {
+    const normalizedPage = Math.max(1, nextPage)
+    setGroupsPage(normalizedPage)
+    runAnalysis({ groupsPage: normalizedPage })
+  }
+
+  function changePageSize(nextPageSize: number) {
+    setPageSize(nextPageSize)
+    setDuplicatePage(1)
+    setGroupsPage(1)
+    runAnalysis({ duplicatePage: 1, groupsPage: 1, pageSize: nextPageSize })
+  }
+
+  function clearResults() {
     analysisRequestIdRef.current += 1
     setSelectedFields([])
-    setValueSearch('')
-    setSortBy(DEFAULT_SORT_BY)
-    setSortDirection(DEFAULT_SORT_DIRECTION)
-    setShowDuplicateGroupsOnly(false)
-    setPage(1)
-    setValuesResult(null)
+    setDraftFilterField('')
+    setDraftFilterValue('')
+    setEffectiveFilter(null)
+    setSortMode(DEFAULT_SORT_MODE)
+    setDuplicatePage(1)
+    setGroupsPage(1)
+    setResult(null)
     setAnalysisError(null)
     setIsAnalyzing(false)
+    setExpandedGroups(EMPTY_EXPANDED_GROUPS)
     setActionMessage('Values results cleared.')
   }
 
-  async function copyFieldSet() {
-    if (selectedFields.length === 0) {
-      return
-    }
-
-    await copy(selectedFields.join('\n'), 'values-field-set')
+  async function copyGroupItems(group: ValuesExplorerGroup, sectionKey: ValuesSectionKey) {
+    await copy(group.items.map((item) => JSON.stringify(item.item, null, 2)).join('\n'), valueGroupCopyKey(sectionKey, group))
   }
 
-  async function copyVisibleSummary() {
-    if (duplicateGroupsOnPage.length === 0) {
-      return
-    }
-
-    const rows = duplicateGroupsOnPage.map((group) => [group.display_value, group.count, group.source_paths.join(', '), group.record_indexes.join(', ')].join('\t'))
-    const text = ['Value group\tCount\tSource paths\tRecord indexes', ...rows].join('\n')
-
-    await copy(text, 'values-visible-summary')
+  function toggleGroup(sectionKey: ValuesSectionKey, group: ValuesExplorerGroup) {
+    const id = valueGroupId(group)
+    setExpandedGroups((current) => {
+      const sectionIds = current[sectionKey]
+      return {
+        ...current,
+        [sectionKey]: sectionIds.includes(id) ? sectionIds.filter((currentId) => currentId !== id) : [...sectionIds, id],
+      }
+    })
   }
 
-  async function copyValueGroupRecords(group: ValuesGroup, groupIndex: number) {
-    const text = buildValueGroupItemsCopyText(group)
-    if (!text) {
-      return
-    }
+  function expandSection(sectionKey: ValuesSectionKey, groups: ValuesExplorerGroup[]) {
+    setExpandedGroups((current) => ({ ...current, [sectionKey]: groups.map(valueGroupId) }))
+  }
 
-    await copy(text, valueGroupCopyKey(groupIndex))
+  function collapseSection(sectionKey: ValuesSectionKey) {
+    setExpandedGroups((current) => ({ ...current, [sectionKey]: [] }))
   }
 
   if (!isConfigLoaded) {
-    return (
-      <section className="values-explorer" aria-label="Values Explorer view">
-        <div className="state-card" role="status">
-          <strong>Loading Values Explorer configuration…</strong>
-          <span>Checking whether grouped value insights are available.</span>
-        </div>
-      </section>
-    )
+    return <ValuesStateCard title="Loading Values Explorer configuration..." body="Checking whether Values Explorer is available." />
   }
 
   if (valuesExplorerDisabled) {
-    return (
-      <section className="values-explorer" aria-label="Values Explorer view">
-        <div className="state-card" role="status">
-          <strong>Values Explorer disabled</strong>
-          <span>Values Explorer is disabled by configuration. Grouped value duplicate insights are unavailable in this build.</span>
-        </div>
-      </section>
-    )
+    return <ValuesStateCard title="Values Explorer disabled" body="Values Explorer is disabled by configuration." />
   }
 
   return (
     <section className="values-explorer" aria-label="Values Explorer view">
-      <div className="result-card values-controls-card">
-        <div className="result-card-heading">
-          <div>
-            <h3>Values Explorer</h3>
-            <p className="muted">Select fields, filter values, and review unique or repeated groups.</p>
+      <div className="result-card values-explorer-card">
+        <div className="result-card-heading values-explorer-heading">
+          <div className="values-title-group">
+            <h3>
+              <span className="values-title-icon" aria-hidden="true"><CopyGlyph /></span>
+              Values Explorer
+            </h3>
           </div>
-          <div className="result-heading-actions">
-            <button type="button" disabled={selectedFields.length === 0 && !valuesResult && !valueSearch} onClick={clearValuesResults}>
-              Clear Results
-            </button>
-          </div>
-        </div>
-
-        <div className="values-layout">
-          <div className="field-picker" aria-label="Values field picker">
-            <MultiSelectDropdown
-              id="values-field-picker"
-              label="Select fields"
-              options={fieldOptions}
-              value={selectedFields}
-              onChange={handleSelectedFieldsChange}
-              maxSelected={maxSelectedFields}
-              placeholder="Choose value fields"
-              searchPlaceholder="Search fields…"
-              searchValue={fieldSearch}
-              onSearchChange={setFieldSearch}
-              onSelectionLimit={handleSelectionLimit}
-              loading={isDiscovering}
-              error={discoveryError ? `${discoveryError.title}: ${discoveryError.detail}` : null}
-              emptyMessage="No value fields found. Try a different field filter or analyze a JSON array/object with scalar fields."
-            />
-
-            {selectionLimitMessage ? <p className="input-help warning-text">{selectionLimitMessage}</p> : null}
-            {actionMessage ? <p className="input-help" role="status">{actionMessage}</p> : null}
-            {errorMessage ? <p className="input-help warning-text" role="status">{errorMessage}</p> : null}
-          </div>
-
-          <div className="selected-fields-panel" aria-label="Selected field set">
-            <div className="selected-fields-heading">
-              <h4>Field Set</h4>
-              <button
-                type="button"
-                className={`copy-button ${copiedKey === 'values-field-set' ? 'copied' : ''} ${errorKey === 'values-field-set' ? 'error' : ''}`}
-                disabled={selectedFields.length === 0}
-                onClick={() => { void copyFieldSet() }}
-              >
-                {copiedKey === 'values-field-set' ? 'Copied' : errorKey === 'values-field-set' ? 'Copy failed' : 'Copy fields'}
-              </button>
-            </div>
-            {selectedFieldInfos.length === 0 ? (
-              <p className="muted">Select at least one field to analyze values.</p>
-            ) : (
-              <div className="selected-field-list">
-                {selectedFieldInfos.map((field) => (
-                  <article key={field.field_path} className="selected-field-card">
-                    <div>
-                      <strong>{field.label}</strong>
-                      <code>{field.field_path}</code>
-                    </div>
-                    <dl>
-                      <div><dt>Types</dt><dd>{field.type_hints.join(', ') || 'unknown'}</dd></div>
-                      <div><dt>Unique</dt><dd>{formatInteger(field.unique_value_count)}</dd></div>
-                      <div><dt>Null</dt><dd>{formatInteger(field.null_count)}</dd></div>
-                      <div><dt>Missing</dt><dd>{formatInteger(field.missing_count)}</dd></div>
-                    </dl>
-                    {field.sample_values.length > 0 ? (
-                      <p className="input-help">Samples: {field.sample_values.slice(0, 3).map(formatUnknown).join(', ')}</p>
-                    ) : null}
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="result-card values-results-card">
-        <div className="result-card-heading values-results-heading">
-          <div>
-            <h3>Grouped values</h3>
-            <p className="muted">Review repeated values and copy the records behind any group.</p>
-          </div>
-        </div>
-        <div className="values-toolbar" aria-label="Values filter controls">
-          <label>
-            <span>Value search</span>
-            <input
-              className="text-input"
-              type="search"
-              value={valueSearch}
-              onChange={(event) => {
-                setPage(1)
-                setValueSearch(event.target.value)
-              }}
-              placeholder="Filter grouped values…"
-            />
-          </label>
-          <label>
-            <span>Sort by</span>
-            <select
-              value={sortBy}
-              onChange={(event) => {
-                setPage(1)
-                setSortBy(event.target.value as ValuesSortBy)
-              }}
-            >
-              <option value="count">Count</option>
-              <option value="value">Value</option>
-              <option value="first_source_path">First source path</option>
-            </select>
-          </label>
-          <label>
-            <span>Direction</span>
-            <select
-              value={sortDirection}
-              onChange={(event) => {
-                setPage(1)
-                setSortDirection(event.target.value as 'asc' | 'desc')
-              }}
-            >
-              <option value="desc">Descending</option>
-              <option value="asc">Ascending</option>
-            </select>
-          </label>
-          <label>
-            <span>Page size</span>
-            <select
-              value={pageSize}
-              onChange={(event) => {
-                setPage(1)
-                setPageSize(Number(event.target.value))
-              }}
-            >
-              {pageSizes.map((size) => (
-                <option key={size} value={size}>{size}</option>
-              ))}
-            </select>
-          </label>
-          <label className="checkbox-row values-checkbox-row">
-            <input
-              type="checkbox"
-              checked={showDuplicateGroupsOnly}
-              disabled={!valuesResult || (!showDuplicateGroupsOnly && duplicateGroupsOnPage.length === 0)}
-              onChange={(event) => {
-                setShowDuplicateGroupsOnly(event.target.checked)
-              }}
-            />
-            Duplicate groups only
-          </label>
-          <label className="checkbox-row values-checkbox-row">
-            <input
-              type="checkbox"
-              checked={includeParentItems}
-              onChange={(event) => {
-                setIncludeParentItems(event.target.checked)
-              }}
-            />
-            Parent/source details
-          </label>
-        </div>
-        <div className="values-secondary-actions">
           <button
             type="button"
-            className={`copy-button compact ${copiedKey === 'values-visible-summary' ? 'copied' : ''} ${errorKey === 'values-visible-summary' ? 'error' : ''}`}
-            disabled={duplicateGroupsOnPage.length === 0}
-            onClick={() => { void copyVisibleSummary() }}
+            className="values-card-toggle icon-only-button"
+            aria-expanded={!isCollapsed}
+            aria-controls="values-explorer-body"
+            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
+            onClick={() => setIsCollapsed((current) => !current)}
           >
-            {copiedKey === 'values-visible-summary' ? 'Copied' : errorKey === 'values-visible-summary' ? 'Copy failed' : 'Copy duplicate summary'}
+            {isCollapsed ? <ChevronDownGlyph /> : <ChevronUpGlyph />}
           </button>
         </div>
 
-        <ValuesSummaryPanel summary={summary} selectedFields={selectedFields} />
-
-        {valuesPageSizeClamped ? (
-          <p className="input-help warning-text">
-            Values requests use page size {formatInteger(valuesPageSize)} because the selected page size is above the Values Explorer limit.
-          </p>
-        ) : null}
-        {selectionValidationMessage ? <p className="input-help warning-text">{selectionValidationMessage}</p> : null}
+        {errorMessage ? <p className="input-help warning-text values-header-error" role="status">{errorMessage}</p> : null}
+        {discoveryError ? <InlineProblem error={discoveryError} /> : null}
         {analysisError ? <InlineProblem error={analysisError} /> : null}
-        {selectedFields.length === 0 ? (
-          <div className="inline-empty-state">
-            <strong>No fields selected</strong>
-            <span>Select one or more fields to load grouped values.</span>
-          </div>
-        ) : null}
-        {isAnalyzing ? <p className="muted" role="status">Loading grouped values…</p> : null}
-        {!isAnalyzing && valuesResult && valuesResult.groups.length === 0 ? (
-          <div className="inline-empty-state">
-            <strong>No values match</strong>
-            <span>Try clearing value search or changing the selected fields.</span>
-          </div>
-        ) : null}
-        {!isAnalyzing && valuesResult && showDuplicateGroupsOnly && valuesResult.groups.length > 0 && displayedGroups.length === 0 ? (
-          <div className="inline-empty-state">
-            <strong>No duplicate groups on this page</strong>
-            <span>Clear the duplicate-only filter or navigate pages to review all grouped values.</span>
-          </div>
-        ) : null}
-        {displayedGroups.length > 0 ? (
-          <ValuesGroupsTable
-            groups={displayedGroups}
-            selectedFields={selectedFields}
-            copiedKey={copiedKey}
-            errorKey={errorKey}
-            onCopyGroup={(group, groupIndex) => { void copyValueGroupRecords(group, groupIndex) }}
-          />
-        ) : null}
 
-        <div className="pagination-row" aria-label="Values pagination">
-          <span>
-            Page {formatInteger(page)} of {formatInteger(totalPages)} · {formatInteger(valuesResult?.total_groups ?? 0)} groups · {formatInteger(duplicateGroupsOnPage.length)} duplicate groups on page
-          </span>
-          <div>
-            <button
-              type="button"
-              disabled={page <= 1 || isAnalyzing}
-              onClick={() => {
-                setPage((current) => Math.max(1, current - 1))
-              }}
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={!valuesResult?.has_next_page || isAnalyzing}
-              onClick={() => {
-                setPage((current) => current + 1)
-              }}
-            >
-              Next
-            </button>
+        {!isCollapsed ? (
+          <div className="values-explorer-body" id="values-explorer-body">
+            <div className="field-picker values-field-picker" aria-label="Values field picker">
+              <MultiSelectDropdown
+                id="values-field-picker"
+                label="Select field to analyze for unique and duplicate values"
+                options={fieldOptions}
+                value={selectedFields}
+                onChange={handleSelectedFieldsChange}
+                maxSelected={maxSelectedFields}
+                placeholder="Choose one or more fields..."
+                searchPlaceholder="Search fields..."
+                searchValue={fieldSearch}
+                onSearchChange={setFieldSearch}
+                onSelectionLimit={handleSelectionLimit}
+                loading={isDiscovering}
+                emptyMessage="No value fields found."
+                showSearch={false}
+              />
+              {selectedFields.length >= maxSelectedFields ? <p className="input-help">Maximum of {formatInteger(maxSelectedFields)} fields can be selected at once.</p> : null}
+              <p className="input-help values-field-helper">Available fields are automatically detected from your JSON structure</p>
+              {selectionLimitMessage ? <p className="input-help warning-text">{selectionLimitMessage}</p> : null}
+              {actionMessage ? <p className="input-help" role="status">{actionMessage}</p> : null}
+            </div>
+
+            <FilterControls
+              options={fields}
+              selectedField={draftFilterField}
+              value={draftFilterValue}
+              onFieldChange={changeFilterField}
+              onValueChange={changeFilterValue}
+              onClear={clearFilter}
+            />
+
+            {selectedFields.length > 0 ? (
+              <div className="values-sort-row">
+                <label>
+                  <span>Sort values by</span>
+                  <select value={sortMode} onChange={(event) => changeSort(event.target.value as ValuesExplorerSortMode)}>
+                    <option value="frequency">Frequency</option>
+                    <option value="alphabetical">Alphabetical</option>
+                  </select>
+                </label>
+              </div>
+            ) : null}
+
+            {selectedFields.length === 0 ? (
+              <div className="values-empty-selection">
+                Select one or more fields to analyze duplicate combinations.
+              </div>
+            ) : null}
+
+            {isAnalyzing && !result ? <p className="muted" role="status">Loading values...</p> : null}
+
+            {result ? (
+              <div className="values-results-shell">
+                <ResultsSummary
+                  result={result}
+                  selectedFields={selectedFields.map((fieldPath) => knownFieldsByPath[fieldPath] ?? fields.find((field) => field.field_path === fieldPath) ?? fieldSummaryFallback(fieldPath))}
+                  appliedFilterField={fields.find((field) => field.field_path === effectiveFilter?.field_path)?.label ?? effectiveFilter?.field_path ?? null}
+                />
+                <ResultsPanels
+                  result={result}
+                  copiedKey={copiedKey}
+                  errorKey={errorKey}
+                  expandedGroups={expandedGroups}
+                  pageSizes={pageSizes}
+                  onCopyGroup={(group, sectionKey) => { void copyGroupItems(group, sectionKey) }}
+                  onToggleGroup={toggleGroup}
+                  onExpandAll={expandSection}
+                  onCollapseAll={collapseSection}
+                  onDuplicatePageChange={changeDuplicatePage}
+                  onGroupsPageChange={changeGroupsPage}
+                  onPageSizeChange={changePageSize}
+                />
+              </div>
+            ) : null}
+
+            {selectedFields.length > 0 ? (
+              <div className="values-footer-actions">
+                {result && result.duplicate_group_count > 0 ? (
+                  <button type="button" disabled={!config?.features.pdf_export} onClick={() => setActionMessage('PDF export is not available in this build.')}>
+                    Export PDF
+                  </button>
+                ) : null}
+                <button type="button" onClick={clearResults}>Clear Results</button>
+              </div>
+            ) : null}
           </div>
-        </div>
+        ) : null}
       </div>
     </section>
   )
 }
 
-interface ValuesSummary {
-  valueGroups: number | null
-  duplicateGroupsOnPage: number | null
-  pageValues: number
+function ValuesStateCard({ title, body }: { title: string; body: string }) {
+  return (
+    <section className="values-explorer" aria-label="Values Explorer view">
+      <div className="state-card" role="status">
+        <strong>{title}</strong>
+        <span>{body}</span>
+      </div>
+    </section>
+  )
 }
 
-function ValuesSummaryPanel({ summary, selectedFields }: { summary: ValuesSummary; selectedFields: string[] }) {
+function FilterControls({
+  options,
+  selectedField,
+  value,
+  onFieldChange,
+  onValueChange,
+  onClear,
+}: {
+  options: ValuesFieldInfo[]
+  selectedField: string
+  value: string
+  onFieldChange: (field: string) => void
+  onValueChange: (value: string) => void
+  onClear: () => void
+}) {
+  if (options.length === 0) {
+    return null
+  }
+
   return (
-    <div className="summary-strip values-summary" aria-label="Values results summary">
-      <Metric label="Groups" value={summary.valueGroups === null ? '—' : formatInteger(summary.valueGroups)} />
-      <Metric label="Duplicates" value={summary.duplicateGroupsOnPage === null ? '—' : formatInteger(summary.duplicateGroupsOnPage)} />
-      <Metric label="Page values" value={formatInteger(summary.pageValues)} />
-      <Metric label="Field set" value={selectedFields.length === 0 ? 'None' : formatInteger(selectedFields.length)} />
+    <div className="values-filter-controls" aria-label="Values filter controls">
+      <label>
+        <span>Filter field</span>
+        <select value={selectedField || '__none__'} onChange={(event) => onFieldChange(event.target.value === '__none__' ? '' : event.target.value)}>
+          <option value="__none__">No filter field</option>
+          {options.map((field) => <option key={field.field_path} value={field.field_path}>{field.label}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Filter value</span>
+        <input
+          className="text-input"
+          value={value}
+          onChange={(event) => onValueChange(event.target.value)}
+          placeholder="Type a value to filter records..."
+          disabled={!selectedField}
+        />
+      </label>
+      <button type="button" onClick={onClear} disabled={!selectedField && !value}>Clear Filter</button>
     </div>
   )
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function ResultsSummary({
+  result,
+  selectedFields,
+  appliedFilterField,
+}: {
+  result: ValuesExplorerAnalysisResponse
+  selectedFields: ValuesFieldInfo[]
+  appliedFilterField: string | null
+}) {
   return (
-    <div className="metric-card">
-      <span>{label}</span>
+    <div className="values-summary-stack">
+      <div>
+        <p className="values-summary-title">{result.is_composite ? 'Composite Field Combination' : 'Field Analysis'}</p>
+        <div className="selected-field-chip-list">
+          {selectedFields.map((field) => <code key={field.field_path} className="selected-field-chip">{field.label}</code>)}
+        </div>
+        {appliedFilterField && result.filter ? (
+          <p className="input-help">Filtered by <strong>{appliedFilterField}</strong>: <code>{result.filter.value}</code></p>
+        ) : null}
+      </div>
+      <div className="values-summary" aria-label="Values results summary">
+        <SummaryMetric label="Total Records" value={formatInteger(result.total_items)} />
+        <SummaryMetric label="Unique results" value={formatInteger(result.unique_values)} tone="info" />
+        <SummaryMetric
+          label="Duplicate results"
+          value={(
+            <>
+              {formatInteger(result.duplicate_group_count)}
+              {result.duplicate_group_count > 0 ? (
+                <span>({Math.round((result.duplicate_group_count / Math.max(1, result.unique_values)) * 100)}%)</span>
+              ) : null}
+            </>
+          )}
+          tone="danger"
+        />
+        <SummaryMetric label="Field Set" value={result.field_paths.join(' + ')} compact />
+      </div>
+      {result.duplicate_group_count > 0 ? (
+        <div className="values-duplicate-callout" role="status">
+          <WarningGlyph />
+          <div>
+            <strong>Found {formatInteger(result.duplicate_group_count)} duplicate results</strong>
+            <span>The selected field combination appears multiple times in the same record scope.</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function SummaryMetric({
+  label,
+  value,
+  tone,
+  compact = false,
+}: {
+  label: string
+  value: ReactNode
+  tone?: 'info' | 'danger'
+  compact?: boolean
+}) {
+  return (
+    <div className={`values-summary-metric${compact ? ' compact' : ''}${tone ? ` ${tone}` : ''}`}>
+      <p>{label}</p>
       <strong>{value}</strong>
     </div>
   )
 }
 
-function ValuesGroupsTable({
-  groups,
-  selectedFields,
+function ResultsPanels({
+  result,
   copiedKey,
   errorKey,
+  expandedGroups,
+  pageSizes,
   onCopyGroup,
+  onToggleGroup,
+  onExpandAll,
+  onCollapseAll,
+  onDuplicatePageChange,
+  onGroupsPageChange,
+  onPageSizeChange,
 }: {
-  groups: ValuesGroup[]
-  selectedFields: string[]
+  result: ValuesExplorerAnalysisResponse
   copiedKey: string | null
   errorKey: string | null
-  onCopyGroup: (group: ValuesGroup, groupIndex: number) => void
+  expandedGroups: ExpandedGroupsState
+  pageSizes: number[]
+  onCopyGroup: (group: ValuesExplorerGroup, sectionKey: ValuesSectionKey) => void
+  onToggleGroup: (sectionKey: ValuesSectionKey, group: ValuesExplorerGroup) => void
+  onExpandAll: (sectionKey: ValuesSectionKey, groups: ValuesExplorerGroup[]) => void
+  onCollapseAll: (sectionKey: ValuesSectionKey) => void
+  onDuplicatePageChange: (page: number) => void
+  onGroupsPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
 }) {
   return (
-    <div className="values-groups-list" role="list" aria-label="Grouped values list">
-      {groups.map((group, groupIndex) => {
-        const isDuplicateGroup = group.count > 1
-        const copyKey = valueGroupCopyKey(groupIndex)
-        return (
-          <article
-            key={`${group.display_value}-${group.source_paths.join('|')}-${group.record_indexes.join('|')}-${groupIndex}`}
-            className={`value-group-row ${isDuplicateGroup ? 'duplicate-value-row' : ''}`}
-            role="listitem"
-          >
-            <div className="value-group-main">
-              <div className="value-group-title">
-                <strong>{group.display_value}</strong>
-                <span className={isDuplicateGroup ? 'duplicate-group-badge' : 'single-group-badge'}>
-                  {isDuplicateGroup ? 'Duplicate' : 'Single'}
-                </span>
-              </div>
-              {selectedFields.length > 1 ? (
-                <dl className="key-detail-list value-group-key-list">
-                  {selectedFields.map((fieldPath, index) => (
-                    <div key={`${fieldPath}-${index}`}>
-                      <dt>{fieldPath}</dt>
-                      <dd>{formatUnknown(group.key[index])}</dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : null}
-              <div className="value-group-meta" aria-label={`Value group ${groupIndex + 1} summary`}>
-                <span><strong>{formatInteger(group.count)}</strong> {isDuplicateGroup ? 'repeated values' : 'single value'}</span>
-                <span>{summarizePaths(group.source_paths)}</span>
-                <span>{summarizeRecords(group.record_indexes)}</span>
-              </div>
-            </div>
-            <div className="value-group-actions">
-              <button
-                type="button"
-                className={`copy-button compact ${copiedKey === copyKey ? 'copied' : ''} ${errorKey === copyKey ? 'error' : ''}`}
-                disabled={group.parent_items.length === 0}
-                aria-label={`Copy value group ${groupIndex + 1} JSON records`}
-                onClick={() => onCopyGroup(group, groupIndex)}
-              >
-                {copiedKey === copyKey
-                  ? 'Copied'
-                  : errorKey === copyKey
-                    ? 'Copy failed'
-                    : 'Copy records'}
-              </button>
-            </div>
-            <details className="value-group-details">
-              <summary>Details</summary>
-              <div className="value-group-detail-grid">
-                <div>
-                  <h5>Source paths</h5>
-                  <PathList paths={group.source_paths} />
+    <>
+      {result.duplicate_group_count > 0 ? (
+        <ValueGroupsSection
+          title={`Duplicate results (${formatInteger(result.duplicate_group_count)})`}
+          groups={result.duplicates}
+          sectionKey="duplicates"
+          copiedKey={copiedKey}
+          errorKey={errorKey}
+          expandedGroupIds={expandedGroups.duplicates}
+          action={result.total_pages > 1 ? (
+            <PaginationControls
+              page={result.page}
+              totalPages={result.total_pages}
+              pageSize={result.page_size}
+              pageSizes={pageSizes}
+              onPageChange={onDuplicatePageChange}
+              onPageSizeChange={onPageSizeChange}
+            />
+          ) : null}
+          onCopyGroup={onCopyGroup}
+          onToggleGroup={onToggleGroup}
+          onExpandAll={onExpandAll}
+          onCollapseAll={onCollapseAll}
+        />
+      ) : (
+        <div className="inline-empty-state"><strong>No duplicate results found for this field set.</strong></div>
+      )}
+
+      <ValueGroupsSection
+        title={`Results (page ${formatInteger(result.groups_page)} of ${formatInteger(result.groups_total_pages)})`}
+        groups={result.all_field_values}
+        sectionKey="all"
+        copiedKey={copiedKey}
+        errorKey={errorKey}
+        expandedGroupIds={expandedGroups.all}
+        action={(
+          <PaginationControls
+            page={result.groups_page}
+            totalPages={result.groups_total_pages}
+            pageSize={result.page_size}
+            pageSizes={pageSizes}
+            onPageChange={onGroupsPageChange}
+            onPageSizeChange={onPageSizeChange}
+          />
+        )}
+        onCopyGroup={onCopyGroup}
+        onToggleGroup={onToggleGroup}
+        onExpandAll={onExpandAll}
+        onCollapseAll={onCollapseAll}
+      />
+    </>
+  )
+}
+
+function ValueGroupsSection({
+  title,
+  groups,
+  sectionKey,
+  copiedKey,
+  errorKey,
+  expandedGroupIds,
+  action,
+  onCopyGroup,
+  onToggleGroup,
+  onExpandAll,
+  onCollapseAll,
+}: {
+  title: string
+  groups: ValuesExplorerGroup[]
+  sectionKey: ValuesSectionKey
+  copiedKey: string | null
+  errorKey: string | null
+  expandedGroupIds: string[]
+  action?: ReactNode
+  onCopyGroup: (group: ValuesExplorerGroup, sectionKey: ValuesSectionKey) => void
+  onToggleGroup: (sectionKey: ValuesSectionKey, group: ValuesExplorerGroup) => void
+  onExpandAll: (sectionKey: ValuesSectionKey, groups: ValuesExplorerGroup[]) => void
+  onCollapseAll: (sectionKey: ValuesSectionKey) => void
+}) {
+  return (
+    <section className="value-groups-section" aria-label={title}>
+      <div className="value-groups-section-heading">
+        <h4>{title}</h4>
+        <div className="value-groups-section-actions">
+          {action}
+          <button type="button" disabled={groups.length === 0} onClick={() => onExpandAll(sectionKey, groups)}>Expand All</button>
+          <button type="button" disabled={groups.length === 0} onClick={() => onCollapseAll(sectionKey)}>Collapse All</button>
+        </div>
+      </div>
+      {groups.length === 0 ? (
+        <div className="inline-empty-state value-groups-section-empty"><strong>No grouped values found.</strong></div>
+      ) : (
+        <div className="values-groups-list" role="list" aria-label={`${sectionKey === 'duplicates' ? 'Duplicate value' : 'All value'} groups`}>
+          {groups.map((group) => {
+            const id = valueGroupId(group)
+            const isExpanded = expandedGroupIds.includes(id)
+            const copyKey = valueGroupCopyKey(sectionKey, group)
+            return (
+              <article key={`${sectionKey}-${id}`} className={`value-group-row ${group.is_duplicate ? 'duplicate-value-row' : ''}`} role="listitem">
+                <div className="value-group-main">
+                  <strong className="value-chip" title={group.display_value}>{formatDisplayValue(group.value, group.display_value)}</strong>
+                  <span className="count-context">{formatInteger(group.count)} occurrence{group.count === 1 ? '' : 's'}</span>
                 </div>
-                <div>
-                  <h5>Records</h5>
-                  <p>{group.record_indexes.length > 0 ? group.record_indexes.join(', ') : '—'}</p>
+                <div className="value-group-actions">
+                  <button
+                    type="button"
+                    className="icon-only-button value-group-icon-button"
+                    aria-label="Copy group items"
+                    disabled={group.items.length === 0}
+                    onClick={() => onCopyGroup(group, sectionKey)}
+                  >
+                    {copiedKey === copyKey ? <CheckGlyph /> : errorKey === copyKey ? '!' : <CopyGlyph />}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-only-button value-group-icon-button"
+                    aria-expanded={isExpanded}
+                    aria-controls={isExpanded ? `values-${sectionKey}-details-${id}` : undefined}
+                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} group`}
+                    onClick={() => onToggleGroup(sectionKey, group)}
+                  >
+                    {isExpanded ? <ChevronUpGlyph /> : <ChevronDownGlyph />}
+                  </button>
                 </div>
-                <div>
-                  <h5>Parent/source items</h5>
-                  <ParentItems items={group.parent_items} />
-                </div>
-              </div>
-            </details>
-          </article>
-        )
-      })}
+                {isExpanded ? (
+                  <div className="value-group-details" id={`values-${sectionKey}-details-${id}`}>
+                    {group.items.map((item) => (
+                      <div key={`${item.index}-${item.source_path ?? 'source'}`} className="value-record-card">
+                        <span className="record-index-badge">Index: {item.index}</span>
+                        <pre className="parent-json-preview">{JSON.stringify(item.item, null, 2)}</pre>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </article>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  pageSize,
+  pageSizes,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  page: number
+  totalPages: number
+  pageSize: number
+  pageSizes: number[]
+  onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
+}) {
+  return (
+    <div className="values-pagination-controls">
+      <select value={pageSize} aria-label="Results per page" onChange={(event) => onPageSizeChange(Number(event.target.value))}>
+        {pageSizes.map((size) => <option key={size} value={size}>{size}</option>)}
+      </select>
+      <button type="button" disabled={page <= 1} aria-label="Previous page" onClick={() => onPageChange(page - 1)}>{'<'}</button>
+      <button type="button" disabled={page >= totalPages} aria-label="Next page" onClick={() => onPageChange(page + 1)}>{'>'}</button>
     </div>
   )
-}
-
-function PathList({ paths }: { paths: string[] }) {
-  if (paths.length === 0) {
-    return <span className="muted">—</span>
-  }
-
-  return (
-    <div className="source-path-list">
-      {paths.slice(0, 6).map((path, index) => <code key={`${path}-${index}`}>{path}</code>)}
-      {paths.length > 6 ? <span className="muted">+{formatInteger(paths.length - 6)} more</span> : null}
-    </div>
-  )
-}
-
-function ParentItems({ items }: { items: ParentItem[] }) {
-  if (items.length === 0) {
-    return <span className="muted">No parent summaries</span>
-  }
-
-  return (
-    <details>
-      <summary>{formatInteger(items.length)} parent item{items.length === 1 ? '' : 's'}</summary>
-      <ul className="parent-item-list">
-        {items.slice(0, 8).map((item, index) => (
-          <li key={`${item.record_index}-${item.source_path ?? 'source'}-${index}`}>
-            <strong>Record {item.record_index}</strong>
-            {item.source_path ? <code>{item.source_path}</code> : null}
-            <span>{formatSummary(item.summary)}</span>
-          </li>
-        ))}
-      </ul>
-    </details>
-  )
-}
-
-function summarizePaths(paths: string[]): string {
-  if (paths.length === 0) {
-    return 'No source paths'
-  }
-
-  const firstPath = paths[0]
-  return paths.length === 1 ? firstPath : `${firstPath} +${formatInteger(paths.length - 1)}`
-}
-
-function summarizeRecords(recordIndexes: number[]): string {
-  if (recordIndexes.length === 0) {
-    return 'No records'
-  }
-
-  const visible = recordIndexes.slice(0, 3).join(', ')
-  return recordIndexes.length <= 3 ? `Records ${visible}` : `Records ${visible} +${formatInteger(recordIndexes.length - 3)}`
 }
 
 function InlineProblem({ error }: { error: ProblemDetails }) {
   return (
-    <div className="state-card error-state inline-problem" role="alert">
+    <div className="inline-problem" role="alert">
       <strong>{error.title}</strong>
       <span>{error.detail}</span>
     </div>
   )
-}
-
-function buildValuesSummary(valuesResult: ValuesAnalysisResponse | null): ValuesSummary {
-  const pageValues = valuesResult?.groups.reduce((total, group) => total + group.count, 0) ?? 0
-  const duplicateGroups = valuesResult?.groups.filter((group) => group.count > 1) ?? []
-  const duplicateGroupsOnPage = valuesResult ? duplicateGroups.length : null
-  const valueGroups = valuesResult?.total_groups ?? null
-
-  return { valueGroups, duplicateGroupsOnPage, pageValues }
-}
-
-function valueGroupCopyKey(groupIndex: number) {
-  return `values-group-${groupIndex}`
-}
-
-function buildValueGroupItemsCopyText(group: ValuesGroup): string {
-  return group.parent_items
-    .map((item) => JSON.stringify(item.summary, null, 2))
-    .join('\n\n')
 }
 
 function fieldSummaryFallback(fieldPath: string): ValuesFieldInfo {
@@ -747,31 +854,65 @@ function fieldSummaryFallback(fieldPath: string): ValuesFieldInfo {
   }
 }
 
-function areStringArraysEqual(left: string[], right: string[]) {
-  return left.length === right.length && left.every((value, index) => value === right[index])
+function formatDisplayValue(value: unknown, fallback: string): string {
+  if (value === null || value === undefined || fallback === '') {
+    return 'No data'
+  }
+  return fallback.length > 180 ? `${fallback.slice(0, 177)}...` : fallback
 }
 
-function formatSummary(summary: Record<string, unknown>): string {
-  const parts = Object.entries(summary).slice(0, 5).map(([key, value]) => `${key}: ${formatUnknown(value)}`)
-  return parts.length > 0 ? parts.join(', ') : 'No summary fields'
+function CopyGlyph() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
+    </svg>
+  )
 }
 
-function formatUnknown(value: unknown): string {
-  if (value === null) {
-    return 'null'
-  }
+function CheckGlyph() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  )
+}
 
-  if (typeof value === 'string') {
-    return value
-  }
+function ChevronDownGlyph() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
 
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value)
-  }
+function ChevronUpGlyph() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+      <path d="m18 15-6-6-6 6" />
+    </svg>
+  )
+}
 
-  if (value === undefined) {
-    return 'missing'
-  }
+function WarningGlyph() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+    </svg>
+  )
+}
 
-  return JSON.stringify(value)
+function valueGroupCopyKey(sectionKey: ValuesSectionKey, group: ValuesExplorerGroup) {
+  return `values-${sectionKey}-${valueGroupId(group)}`
+}
+
+function valueGroupId(group: ValuesExplorerGroup) {
+  const identity = JSON.stringify({ value: group.value, display: group.display_value, count: group.count })
+  let hash = 5381
+  for (let index = 0; index < identity.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ identity.charCodeAt(index)
+  }
+  return (hash >>> 0).toString(36)
 }

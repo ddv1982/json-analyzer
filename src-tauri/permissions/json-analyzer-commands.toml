@@ -10,6 +10,7 @@ commands.allow = [
   "min_max_filled",
   "discover_values_fields",
   "analyze_values",
+  "analyze_values_explorer",
   "analyze_advanced_field_duplicates",
   "analyze_composite_duplicates",
   "parse_curl",

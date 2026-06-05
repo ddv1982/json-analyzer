@@ -2,9 +2,9 @@ mod commands;
 
 use commands::{
     analyze_advanced_field_duplicates, analyze_composite_duplicates, analyze_json, analyze_values,
-    cancel_curl_job, discover_values_fields, execute_curl, find_duplicates, format_json,
-    get_config, get_curl_job_results, get_fields, get_health, min_max_filled, parse_curl,
-    start_curl_job, validate_curl_guardrail, validate_json,
+    analyze_values_explorer, cancel_curl_job, discover_values_fields, execute_curl,
+    find_duplicates, format_json, get_config, get_curl_job_results, get_fields, get_health,
+    min_max_filled, parse_curl, start_curl_job, validate_curl_guardrail, validate_json,
 };
 use json_analyzer::{AppConfig, JsonAnalyzerService};
 
@@ -20,6 +20,7 @@ fn main() {
             min_max_filled,
             discover_values_fields,
             analyze_values,
+            analyze_values_explorer,
             analyze_advanced_field_duplicates,
             analyze_composite_duplicates,
             parse_curl,

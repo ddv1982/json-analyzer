@@ -2,6 +2,8 @@ import type { ProblemDetails, ValidateResponse } from '../../lib/commands'
 import type { BusyAction } from '../../state/useJsonAnalyzerState'
 import { ErrorPanel, LoadingPanel, ValidationSummary } from '../common/StatusPanels'
 import { formatInteger } from '../common/format'
+import { Badge } from '../common/Badge'
+import { Button } from '../common/Button'
 
 interface JsonInputPanelProps {
   busyAction: BusyAction
@@ -44,8 +46,8 @@ export function JsonInputPanel({
           <h2 id="json-input-heading">JSON Input</h2>
         </div>
         <div className="input-status-group" aria-label="Input status">
-          <span className="meta-pill">{formatInteger(inputByteCount)} bytes</span>
-          <span className={validation?.valid ? 'status-badge' : 'meta-pill'}>
+          <Badge variant="neutral">{formatInteger(inputByteCount)} bytes</Badge>
+          <Badge variant={validation?.valid ? 'success' : 'neutral'}>
             {isDebouncedValidating
               ? 'Validating…'
               : error
@@ -53,7 +55,7 @@ export function JsonInputPanel({
                 : validation?.valid
                   ? 'Valid JSON'
                   : 'Ready for input'}
-          </span>
+          </Badge>
         </div>
       </div>
 
@@ -81,15 +83,15 @@ export function JsonInputPanel({
       <p className="input-help">Combine one level of nested arrays for analysis. Validation remains strict.</p>
 
       <div className="action-row">
-        <button type="button" onClick={onLoadExample} disabled={isBusy}>
+        <Button onClick={onLoadExample} disabled={isBusy}>
           Load Example
-        </button>
-        <button type="button" onClick={onFormat} disabled={!hasInput || isBusy}>
+        </Button>
+        <Button onClick={onFormat} disabled={!hasInput || isBusy}>
           {busyAction === 'format' ? 'Formatting…' : 'Format'}
-        </button>
-        <button type="button" onClick={onClear} disabled={!hasInput || isBusy}>
+        </Button>
+        <Button onClick={onClear} disabled={!hasInput || isBusy}>
           Clear
-        </button>
+        </Button>
       </div>
 
       {validation ? <ValidationSummary validation={validation} /> : null}

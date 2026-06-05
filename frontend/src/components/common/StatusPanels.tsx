@@ -1,5 +1,6 @@
 import type { ProblemDetails, ValidateResponse } from '../../lib/commands'
 import type { BusyAction } from '../../state/useJsonAnalyzerState'
+import { Button } from './Button'
 
 export function BrowserMockNotice() {
   return (
@@ -55,9 +56,9 @@ export function EmptyState({ onAnalyze, hasInput }: { onAnalyze: () => void; has
     <div className="empty-state">
       <h3>Ready to Analyze</h3>
       <p>Validate JSON and explore statistics, values and duplicates.</p>
-      <button type="button" className="primary-action" onClick={onAnalyze} disabled={!hasInput}>
+      <Button variant="primary" onClick={onAnalyze} disabled={!hasInput}>
         Analyze JSON
-      </button>
+      </Button>
     </div>
   )
 }

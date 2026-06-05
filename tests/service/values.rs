@@ -46,6 +46,27 @@ fn disabled_values_explorer_feature_gates_service_methods() {
         analysis_error.problem.invalid_params[0].name,
         "features.values_explorer"
     );
+
+    let explorer_analysis_error = service
+        .analyze_values_explorer(ValuesExplorerAnalysisRequest {
+            json_string: "[]".to_string(),
+            selected_fields: vec!["[].id".to_string()],
+            filter: None,
+            sort_mode: ValuesExplorerSortMode::Frequency,
+            page: 1,
+            groups_page: None,
+            page_size: 10,
+            flatten: false,
+        })
+        .unwrap_err();
+    assert_eq!(
+        explorer_analysis_error.problem.error_type,
+        "unsupported_config"
+    );
+    assert_eq!(
+        explorer_analysis_error.problem.invalid_params[0].name,
+        "features.values_explorer"
+    );
 }
 
 #[test]
@@ -247,6 +268,48 @@ fn values_explorer_service_caps_parent_items_per_group_from_config() {
 }
 
 #[test]
+fn values_explorer_target_endpoint_caps_items_and_uses_independent_group_page() {
+    let service = JsonAnalyzerService::new(AppConfig {
+        limits: LimitsConfig {
+            values_explorer: ValuesExplorerLimitsConfig {
+                max_parent_items_per_group: 1,
+                ..ValuesExplorerLimitsConfig::default()
+            },
+            ..LimitsConfig::default()
+        },
+        ..AppConfig::default()
+    });
+    let input = r#"[
+      {"id":1,"department":"Engineering"},
+      {"id":2,"department":"Engineering"},
+      {"id":3,"department":"Design"},
+      {"id":4,"department":"Support"}
+    ]"#;
+
+    let result = service
+        .analyze_values_explorer(ValuesExplorerAnalysisRequest {
+            json_string: input.to_string(),
+            selected_fields: vec!["[].department".to_string()],
+            filter: None,
+            sort_mode: ValuesExplorerSortMode::Frequency,
+            page: 1,
+            groups_page: Some(2),
+            page_size: 1,
+            flatten: false,
+        })
+        .unwrap();
+
+    assert_eq!(result.page, 1);
+    assert_eq!(result.groups_page, 2);
+    assert_eq!(result.total_pages, 1);
+    assert_eq!(result.groups_total_pages, 3);
+    assert_eq!(result.duplicates[0].display_value, "Engineering");
+    assert_eq!(result.duplicates[0].count, 2);
+    assert_eq!(result.duplicates[0].items.len(), 1);
+    assert_eq!(result.all_field_values[0].display_value, "Design");
+}
+
+#[test]
 fn values_explorer_service_validates_selection_and_pagination_contract() {
     let service = JsonAnalyzerService::default();
 
@@ -309,6 +372,28 @@ fn values_explorer_service_validates_selection_and_pagination_contract() {
         })
         .unwrap_err();
     assert_eq!(zero_limit.problem.invalid_params[0].name, "limit");
+
+    let groups_page_zero = service
+        .analyze_values_explorer(ValuesExplorerAnalysisRequest {
+            json_string: "[]".to_string(),
+            selected_fields: vec!["[].id".to_string()],
+            filter: None,
+            sort_mode: ValuesExplorerSortMode::Frequency,
+            page: 1,
+            groups_page: Some(0),
+            page_size: 10,
+            flatten: false,
+        })
+        .unwrap_err();
+    assert_eq!(groups_page_zero.problem.error_type, "invalid_request");
+    assert_eq!(
+        groups_page_zero.problem.invalid_params[0].name,
+        "groups_page"
+    );
+    assert_eq!(
+        groups_page_zero.problem.detail,
+        "groups_page must be greater than or equal to 1"
+    );
 
     let huge_page = service
         .analyze_values(ValuesAnalysisRequest {
@@ -438,6 +523,55 @@ fn values_explorer_service_rejects_explosive_match_combinations() {
     );
     assert!(error.problem.detail.contains("record 0"));
     assert!(error.problem.detail.contains("10201 combinations"));
+}
+
+#[test]
+fn values_explorer_target_endpoint_rejects_ambiguous_composite_fields() {
+    let service = JsonAnalyzerService::default();
+    let input = r#"[
+      {"id": 1, "department": "Engineering", "tags": ["api", "backend"]},
+      {"id": 2, "department": "Engineering", "tags": ["api"]}
+    ]"#;
+
+    let error = service
+        .analyze_values_explorer(ValuesExplorerAnalysisRequest {
+            json_string: input.to_string(),
+            selected_fields: vec!["[].department".to_string(), "[].tags.[]".to_string()],
+            filter: None,
+            sort_mode: ValuesExplorerSortMode::Frequency,
+            page: 1,
+            groups_page: None,
+            page_size: 10,
+            flatten: false,
+        })
+        .unwrap_err();
+
+    assert_eq!(error.problem.error_type, "invalid_request");
+    assert_eq!(error.problem.invalid_params[0].name, "selected_fields");
+    assert!(
+        error
+            .problem
+            .detail
+            .contains("ambiguous for composite matching")
+    );
+    assert!(error.problem.detail.contains("record 0"));
+    assert!(error.problem.detail.contains("[].tags.[]"));
+
+    let single_field = service
+        .analyze_values_explorer(ValuesExplorerAnalysisRequest {
+            json_string: input.to_string(),
+            selected_fields: vec!["[].tags.[]".to_string()],
+            filter: None,
+            sort_mode: ValuesExplorerSortMode::Frequency,
+            page: 1,
+            groups_page: None,
+            page_size: 10,
+            flatten: false,
+        })
+        .unwrap();
+
+    assert_eq!(single_field.unique_values, 2);
+    assert_eq!(single_field.duplicate_group_count, 1);
 }
 
 #[test]

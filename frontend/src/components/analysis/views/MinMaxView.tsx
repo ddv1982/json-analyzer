@@ -1,5 +1,6 @@
 import type { MinMaxFilledResult, MinMaxRecord } from '../../../lib/commands'
 import { Metric } from '../../common/Metric'
+import { Badge } from '../../common/Badge'
 import { formatDecimal, formatInteger, formatPercent } from '../../common/format'
 
 export function MinMaxView({ result, compact = false }: { result: MinMaxFilledResult; compact?: boolean }) {
@@ -7,9 +8,9 @@ export function MinMaxView({ result, compact = false }: { result: MinMaxFilledRe
     <section className="result-card" aria-label="Basic min max view">
       <div className="result-card-heading">
         <h3>Min/max filled fields</h3>
-        <span className={result.has_records ? 'status-badge' : 'status-badge warning'}>
+        <Badge variant={result.has_records ? 'success' : 'warning'}>
           {result.has_records ? 'Records scored' : 'No records'}
-        </span>
+        </Badge>
       </div>
       <div className="metric-grid compact-metrics">
         <Metric label="Records" value={formatInteger(result.total_records)} />

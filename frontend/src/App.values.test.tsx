@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import {
   analyzeAdvancedFieldDuplicatesMock,
   analyzeCompositeDuplicatesMock,
-  analyzeValuesMock,
+  analyzeValuesExplorerMock,
   appConfig,
   deferred,
   discoverValuesFieldsMock,
@@ -12,13 +12,12 @@ import {
   renderApp,
   sampleJsonInput,
   setupDefaultAppMocks,
-  valuesResponse,
+  valuesExplorerResponse,
   writeClipboardTextMock,
-  type ValuesAnalysisRequest,
-  type ValuesAnalysisResponse,
+  type ValuesExplorerAnalysisResponse,
 } from './test/app-test-harness'
 
-describe('App frontend MVP workflow', () => {
+describe('Values Explorer target workflow', () => {
   beforeAll(async () => {
     await loadFixtureAnalysis()
   })
@@ -31,203 +30,59 @@ describe('App frontend MVP workflow', () => {
     vi.useRealTimers()
   })
 
-  it('renders Values Explorer and sends local search, sort, pagination, and page-size controls', async () => {
+  async function openValuesTab() {
     renderApp()
     fireEvent.click(screen.getByRole('button', { name: /analyze json/i }))
-
     expect(await screen.findByLabelText(/statistics result view/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: /^values$/i }))
+    await screen.findByRole('button', { name: /^expand$/i })
+    return screen.getByLabelText(/values explorer view/i)
+  }
 
-    const valuesView = await screen.findByLabelText(/values explorer view/i)
-    await waitFor(() => {
-      expect(discoverValuesFieldsMock).toHaveBeenCalledWith({
-        json_string: sampleJsonInput,
-        search: null,
-        limit: null,
-        flatten: false,
-      })
-    })
-    expect(await within(valuesView).findByText('Engineering')).toBeInTheDocument()
-    expect(within(valuesView).getByLabelText(/selected field set/i)).toHaveTextContent('Department')
-    expect(getConfigMock).toHaveBeenCalled()
-    expect(within(valuesView).getByRole('button', { name: /select fields/i })).toHaveTextContent('1/5')
-    const valuesResultView = screen.getByLabelText(/values result view/i)
-    expect(within(valuesResultView).queryByRole('button', { name: /open field duplicate workflow/i })).not.toBeInTheDocument()
-    expect(within(valuesResultView).queryByLabelText(/duplicate analysis workflow/i)).not.toBeInTheDocument()
-    expect(within(valuesView).getByLabelText(/values results summary/i)).toHaveTextContent('Duplicates')
-    expect(within(valuesView).getByLabelText(/values results summary/i)).toHaveTextContent('Page values')
-    expect(within(valuesView).getAllByText(/duplicate group/i).length).toBeGreaterThan(0)
-    expect(within(valuesView).getAllByText(/repeated values/i).length).toBeGreaterThan(0)
-    expect(within(valuesView).getByRole('checkbox', { name: /duplicate groups only/i })).toBeEnabled()
-    expect(within(valuesView).getByRole('button', { name: /copy duplicate summary/i })).toBeEnabled()
-    const copyValueGroupButton = within(valuesView).getByRole('button', { name: /copy value group 1 json records/i })
-    expect(copyValueGroupButton).toBeEnabled()
-    fireEvent.click(copyValueGroupButton)
-    await waitFor(() => {
-      expect(writeClipboardTextMock).toHaveBeenCalledWith(
-        JSON.stringify({ id: 1, name: 'Alice', department: 'Engineering' }, null, 2),
-      )
-    })
-    expect(copyValueGroupButton).toHaveTextContent(/copied/i)
+  async function openValuesTabShell() {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: /analyze json/i }))
+    expect(await screen.findByLabelText(/statistics result view/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: /^values$/i }))
+    return screen.findByLabelText(/values explorer view/i)
+  }
 
-    writeClipboardTextMock.mockClear()
-    fireEvent.click(within(valuesView).getByRole('button', { name: /copy fields/i }))
-    await waitFor(() => {
-      expect(writeClipboardTextMock).toHaveBeenCalledWith('[].department')
-    })
+  async function expandValuesExplorer(valuesView: HTMLElement) {
+    const showButton = await within(valuesView).findByRole('button', { name: /^expand$/i })
+    expect(showButton).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(showButton)
+    expect(within(valuesView).getByRole('button', { name: /^collapse$/i })).toHaveAttribute('aria-expanded', 'true')
+  }
 
-    fireEvent.click(within(valuesView).getByRole('button', { name: /select fields/i }))
-    const fieldSearchBox = within(valuesView).getByRole('searchbox', { name: /search select fields/i })
-    fireEvent.change(fieldSearchBox, { target: { value: 'role' } })
+  async function selectDepartment(valuesView: HTMLElement) {
+    fireEvent.click(within(valuesView).getByRole('button', { name: /select field to analyze/i }))
+    const listbox = await within(valuesView).findByRole('listbox', { name: /select field to analyze/i })
+    fireEvent.click(within(listbox).getByRole('option', { name: /department/i }))
     await waitFor(() => {
-      expect(discoverValuesFieldsMock).toHaveBeenLastCalledWith({
-        json_string: sampleJsonInput,
-        search: 'role',
-        limit: null,
-        flatten: false,
-      })
-    })
-    fireEvent.change(fieldSearchBox, { target: { value: '' } })
-    await waitFor(() => {
-      expect(discoverValuesFieldsMock).toHaveBeenLastCalledWith({
-        json_string: sampleJsonInput,
-        search: null,
-        limit: null,
-        flatten: false,
-      })
-    })
-
-    expect(within(valuesView).getByText('0.department')).toBeInTheDocument()
-    expect(within(valuesView).getByText(/Record 0/i)).toBeInTheDocument()
-
-    fireEvent.click(within(valuesView).getByRole('button', { name: /next/i }))
-    await waitFor(() => {
-      expect(analyzeValuesMock).toHaveBeenLastCalledWith(
-        expect.objectContaining({ page: 2, selected_fields: ['[].department'] }),
-      )
-    })
-
-    fireEvent.change(within(valuesView).getByLabelText(/value search/i), { target: { value: 'sup' } })
-    fireEvent.change(within(valuesView).getByLabelText(/sort by/i), { target: { value: 'value' } })
-    fireEvent.change(within(valuesView).getByLabelText(/page size/i), { target: { value: '10' } })
-
-    await waitFor(() => {
-      expect(analyzeValuesMock).toHaveBeenLastCalledWith({
+      expect(analyzeValuesExplorerMock).toHaveBeenLastCalledWith(expect.objectContaining({
         json_string: sampleJsonInput,
         selected_fields: ['[].department'],
-        search: 'sup',
-        sort: { by: 'value', direction: 'desc' },
+        filter: null,
+        sort_mode: 'frequency',
         page: 1,
-        page_size: 10,
-        include_parent_items: true,
+        page_size: 25,
         flatten: false,
-      })
+      }))
     })
-    expect(await within(valuesView).findByText('Support')).toBeInTheDocument()
+  }
+
+  it('starts collapsed and does not auto-run analysis before fields are selected', async () => {
+    const valuesView = await openValuesTab()
+
+    expect(within(valuesView).getByRole('button', { name: /^expand$/i })).toHaveAttribute('aria-expanded', 'false')
+    expect(analyzeValuesExplorerMock).not.toHaveBeenCalled()
+
+    await expandValuesExplorer(valuesView)
+    expect(within(valuesView).getByText(/select one or more fields to analyze duplicate combinations/i)).toBeInTheDocument()
+    expect(analyzeValuesExplorerMock).not.toHaveBeenCalled()
   })
 
-  it('clears stale grouped values while a new Values Explorer request is pending', async () => {
-    const pendingValues = deferred<ValuesAnalysisResponse>()
-    let pendingRequest: ValuesAnalysisRequest | null = null
-    analyzeValuesMock.mockImplementation((request) => {
-      if (request.search === 'sup') {
-        pendingRequest = request
-        return pendingValues.promise
-      }
-      return Promise.resolve(valuesResponse(request))
-    })
-
-    renderApp()
-    fireEvent.click(screen.getByRole('button', { name: /analyze json/i }))
-
-    expect(await screen.findByLabelText(/statistics result view/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: /^values$/i }))
-
-    const valuesView = await screen.findByLabelText(/values explorer view/i)
-    expect(await within(valuesView).findByLabelText(/grouped values list/i)).toHaveTextContent('Engineering')
-
-    fireEvent.change(within(valuesView).getByLabelText(/value search/i), { target: { value: 'sup' } })
-    await waitFor(() => {
-      expect(analyzeValuesMock).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'sup' }))
-    })
-
-    expect(within(valuesView).getByRole('status')).toHaveTextContent(/loading grouped values/i)
-    expect(within(valuesView).queryByLabelText(/grouped values list/i)).not.toBeInTheDocument()
-
-    if (!pendingRequest) {
-      throw new Error('Expected a pending Values Explorer request')
-    }
-    pendingValues.resolve(valuesResponse(pendingRequest))
-    expect(await within(valuesView).findByText('Support')).toBeInTheDocument()
-  })
-
-  it('filters grouped Values results to duplicate groups without launching a second workflow', async () => {
-    renderApp()
-    fireEvent.click(screen.getByRole('button', { name: /analyze json/i }))
-
-    expect(await screen.findByLabelText(/statistics result view/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: /^values$/i }))
-
-    const valuesResultView = await screen.findByLabelText(/values result view/i)
-    const valuesView = await within(valuesResultView).findByLabelText(/values explorer view/i)
-    const groupedValuesList = await within(valuesView).findByLabelText(/grouped values list/i)
-    expect(groupedValuesList).toHaveTextContent('Engineering')
-    expect(groupedValuesList).toHaveTextContent('Design')
-    expect(within(valuesResultView).queryByRole('button', { name: /open field duplicate workflow/i })).not.toBeInTheDocument()
-    expect(within(valuesResultView).queryByLabelText(/duplicate analysis workflow/i)).not.toBeInTheDocument()
-
-    fireEvent.click(within(valuesView).getByRole('checkbox', { name: /duplicate groups only/i }))
-
-    const filteredGroupedValuesList = within(valuesView).getByLabelText(/grouped values list/i)
-    expect(filteredGroupedValuesList).toHaveTextContent('Engineering')
-    expect(filteredGroupedValuesList).not.toHaveTextContent('Design')
-    expect(within(valuesView).getByLabelText(/values pagination/i)).toHaveTextContent(/1 duplicate groups on page/i)
-
-    fireEvent.change(within(valuesView).getByLabelText(/value search/i), { target: { value: 'des' } })
-    await waitFor(() => {
-      expect(analyzeValuesMock).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'des' }))
-    })
-    const duplicateOnlyCheckbox = within(valuesView).getByRole('checkbox', { name: /duplicate groups only/i })
-    expect(await within(valuesView).findByText(/no duplicate groups on this page/i)).toBeInTheDocument()
-    expect(duplicateOnlyCheckbox).toBeEnabled()
-
-    fireEvent.click(duplicateOnlyCheckbox)
-    const uniqueOnlyList = within(valuesView).getByLabelText(/grouped values list/i)
-    expect(uniqueOnlyList).toHaveTextContent('Design')
-    expect(analyzeAdvancedFieldDuplicatesMock).not.toHaveBeenCalled()
-    expect(analyzeCompositeDuplicatesMock).not.toHaveBeenCalled()
-  })
-
-  it('does not mount Values duplicate workflow when advanced duplicates are disabled', async () => {
-    getConfigMock.mockResolvedValue({
-      config: {
-        ...appConfig.config,
-        features: {
-          ...appConfig.config.features,
-          advanced_duplicates: false,
-        },
-      },
-    })
-
-    renderApp()
-    fireEvent.click(screen.getByRole('button', { name: /analyze json/i }))
-
-    expect(await screen.findByLabelText(/statistics result view/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: /^values$/i }))
-
-    const valuesResultView = await screen.findByLabelText(/values result view/i)
-    const valuesView = await within(valuesResultView).findByLabelText(/values explorer view/i)
-    expect(await within(valuesView).findByText('Engineering')).toBeInTheDocument()
-    expect(within(valuesResultView).queryByRole('button', { name: /open field duplicate workflow/i })).not.toBeInTheDocument()
-    expect(within(valuesResultView).queryByLabelText(/duplicate analysis workflow/i)).not.toBeInTheDocument()
-    await waitFor(() => {
-      expect(discoverValuesFieldsMock).toHaveBeenCalledTimes(1)
-    })
-    expect(analyzeAdvancedFieldDuplicatesMock).not.toHaveBeenCalled()
-    expect(analyzeCompositeDuplicatesMock).not.toHaveBeenCalled()
-  })
-
-  it('renders Values disabled state without invoking Values commands when the Values feature is disabled', async () => {
+  it('renders disabled state without invoking Values commands when the feature is disabled', async () => {
     getConfigMock.mockResolvedValue({
       config: {
         ...appConfig.config,
@@ -238,55 +93,148 @@ describe('App frontend MVP workflow', () => {
       },
     })
 
-    renderApp()
-    fireEvent.click(screen.getByRole('button', { name: /analyze json/i }))
+    await openValuesTabShell()
+    expect(await screen.findByText(/values explorer disabled/i)).toBeInTheDocument()
+    const valuesView = screen.getByLabelText(/values explorer view/i)
 
-    expect(await screen.findByLabelText(/statistics result view/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: /^values$/i }))
-
-    const valuesResultView = await screen.findByLabelText(/values result view/i)
-    const valuesView = await within(valuesResultView).findByLabelText(/values explorer view/i)
-    expect(await within(valuesView).findByText(/values explorer disabled/i)).toBeInTheDocument()
     expect(valuesView).toHaveTextContent(/disabled by configuration/i)
-    expect(within(valuesView).queryByRole('button', { name: /select fields/i })).not.toBeInTheDocument()
-    await waitFor(() => {
-      expect(getConfigMock).toHaveBeenCalled()
-    })
     expect(discoverValuesFieldsMock).not.toHaveBeenCalled()
-    expect(analyzeValuesMock).not.toHaveBeenCalled()
+    expect(analyzeValuesExplorerMock).not.toHaveBeenCalled()
   })
 
-  it('caps Values Explorer field multi-select at five fields', async () => {
-    renderApp()
-    fireEvent.click(screen.getByRole('button', { name: /analyze json/i }))
+  it('runs target Values analysis after field selection and renders summary plus duplicate/all result sections', async () => {
+    const valuesView = await openValuesTab()
+    await expandValuesExplorer(valuesView)
+    await selectDepartment(valuesView)
 
-    expect(await screen.findByLabelText(/statistics result view/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: /^values$/i }))
+    const summary = await within(valuesView).findByLabelText(/values results summary/i)
+    expect(summary).toHaveTextContent('Total Records')
+    expect(summary).toHaveTextContent('Unique results')
+    expect(summary).toHaveTextContent('Duplicate results')
+    expect(summary).toHaveTextContent('Field Set')
 
-    const valuesView = await screen.findByLabelText(/values explorer view/i)
-    expect(await within(valuesView).findByText('Engineering')).toBeInTheDocument()
-    fireEvent.click(within(valuesView).getByRole('button', { name: /select fields/i }))
-    expect(within(valuesView).getByRole('option', { name: /department/i })).toHaveAttribute('aria-selected', 'true')
+    const duplicateSection = within(valuesView).getByLabelText(/^duplicate results/i)
+    const resultsSection = within(valuesView).getByLabelText(/^results \(page/i)
+    expect(duplicateSection).toHaveTextContent('Engineering')
+    expect(resultsSection).toHaveTextContent('Engineering')
+    expect(resultsSection).toHaveTextContent('Design')
+    expect(within(valuesView).queryByLabelText(/all grouped values list/i)).not.toBeInTheDocument()
+    expect(analyzeAdvancedFieldDuplicatesMock).not.toHaveBeenCalled()
+    expect(analyzeCompositeDuplicatesMock).not.toHaveBeenCalled()
+  })
 
-    fireEvent.click(within(valuesView).getByRole('option', { name: /role/i }))
-    fireEvent.click(within(valuesView).getByRole('option', { name: /location/i }))
-    fireEvent.click(within(valuesView).getByRole('option', { name: /status/i }))
-    fireEvent.click(within(valuesView).getByRole('option', { name: /name/i }))
+  it('uses target filter and sort controls for follow-up analysis', async () => {
+    const valuesView = await openValuesTab()
+    await expandValuesExplorer(valuesView)
+    await selectDepartment(valuesView)
+
+    fireEvent.change(within(valuesView).getByLabelText(/filter field/i), { target: { value: '[].status' } })
+    await waitFor(() => {
+      expect(analyzeValuesExplorerMock).toHaveBeenLastCalledWith(expect.objectContaining({
+        filter: null,
+        page: 1,
+      }))
+    })
+
+    fireEvent.change(within(valuesView).getByLabelText(/filter value/i), { target: { value: 'active' } })
+    await waitFor(() => {
+      expect(analyzeValuesExplorerMock).toHaveBeenLastCalledWith(expect.objectContaining({
+        filter: {
+          field_path: '[].status',
+          value: 'active',
+          match_mode: 'contains',
+          case_sensitive: false,
+        },
+      }))
+    })
+
+    fireEvent.change(within(valuesView).getByLabelText(/sort values by/i), { target: { value: 'alphabetical' } })
+    await waitFor(() => {
+      expect(analyzeValuesExplorerMock).toHaveBeenLastCalledWith(expect.objectContaining({ sort_mode: 'alphabetical', page: 1 }))
+    })
+  })
+
+  it('clears loading state when results are cleared during an in-flight request', async () => {
+    const pendingValues = deferred<ValuesExplorerAnalysisResponse>()
+    analyzeValuesExplorerMock.mockReturnValue(pendingValues.promise)
+
+    const valuesView = await openValuesTab()
+    await expandValuesExplorer(valuesView)
+
+    fireEvent.click(within(valuesView).getByRole('button', { name: /select field to analyze/i }))
+    const listbox = await within(valuesView).findByRole('listbox', { name: /select field to analyze/i })
+    fireEvent.click(within(listbox).getByRole('option', { name: /department/i }))
+
+    expect(await within(valuesView).findByRole('status')).toHaveTextContent(/loading values/i)
+    fireEvent.click(within(valuesView).getByRole('button', { name: /clear results/i }))
+
+    expect(within(valuesView).queryByText(/loading values/i)).not.toBeInTheDocument()
+    expect(within(valuesView).getByText(/select one or more fields to analyze duplicate combinations/i)).toBeInTheDocument()
+
+    pendingValues.resolve(valuesExplorerResponse({
+      json_string: sampleJsonInput,
+      selected_fields: ['[].department'],
+      filter: null,
+      sort_mode: 'frequency',
+      page: 1,
+      page_size: 25,
+      flatten: false,
+    }))
+  })
+
+  it('paginates duplicate results independently when duplicate pages exceed one page', async () => {
+    analyzeValuesExplorerMock.mockImplementation((request) => Promise.resolve({
+      ...valuesExplorerResponse(request),
+      page: request.page,
+      total_pages: 2,
+      has_next_page: request.page < 2,
+      duplicate_group_count: 2,
+    }))
+
+    const valuesView = await openValuesTab()
+    await expandValuesExplorer(valuesView)
+    await selectDepartment(valuesView)
+
+    const duplicateSection = await within(valuesView).findByLabelText(/^duplicate results/i)
+    fireEvent.click(within(duplicateSection).getByRole('button', { name: /next page/i }))
 
     await waitFor(() => {
-      expect(analyzeValuesMock).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          selected_fields: ['[].department', '[].role', '[].location', '[].status', '[].name'],
-        }),
-      )
+      expect(analyzeValuesExplorerMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, groups_page: 1 }))
     })
-    const analyzeCallCount = analyzeValuesMock.mock.calls.length
-    const idOption = within(valuesView).getByRole('option', { name: /id/i })
-    expect(idOption).toHaveAttribute('aria-disabled', 'true')
-    expect(within(valuesView).getByRole('status')).toHaveTextContent(/5 of 5 selected\. limit reached/i)
+  })
 
-    fireEvent.click(idOption)
-    expect(analyzeValuesMock).toHaveBeenCalledTimes(analyzeCallCount)
-    expect(within(valuesView).getAllByText(/5 selected/i).length).toBeGreaterThan(0)
+  it('paginates all results independently from duplicate results', async () => {
+    analyzeValuesExplorerMock.mockImplementation((request) => Promise.resolve({
+      ...valuesExplorerResponse(request),
+      groups_page: request.groups_page ?? request.page,
+      groups_total_pages: 2,
+    }))
+
+    const valuesView = await openValuesTab()
+    await expandValuesExplorer(valuesView)
+    await selectDepartment(valuesView)
+
+    const resultsSection = await within(valuesView).findByLabelText(/^results \(page/i)
+    fireEvent.click(within(resultsSection).getByRole('button', { name: /next page/i }))
+
+    await waitFor(() => {
+      expect(analyzeValuesExplorerMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, groups_page: 2 }))
+    })
+  })
+
+  it('expands rows and copies group item JSON', async () => {
+    const valuesView = await openValuesTab()
+    await expandValuesExplorer(valuesView)
+    await selectDepartment(valuesView)
+
+    const duplicateSection = await within(valuesView).findByLabelText(/^duplicate results/i)
+    fireEvent.click(within(duplicateSection).getAllByRole('button', { name: /^expand group$/i })[0])
+    expect(within(duplicateSection).getByText(/index: 0/i)).toBeInTheDocument()
+    expect(within(duplicateSection).getByText(/"Alice"/i)).toBeInTheDocument()
+
+    fireEvent.click(within(duplicateSection).getAllByRole('button', { name: /copy group items/i })[0])
+    await waitFor(() => {
+      expect(writeClipboardTextMock).toHaveBeenCalledWith(expect.stringContaining('"Alice"'))
+    })
   })
 })

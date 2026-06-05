@@ -75,6 +75,15 @@ Run a Tauri compile smoke check without creating installers:
 pnpm tauri:build:no-bundle
 ```
 
+Refresh Tauri icon assets after editing `src-tauri/icons/app-icon.svg`, then do a local smoke check:
+
+```sh
+pnpm exec tauri icon src-tauri/icons/app-icon.svg
+pnpm tauri:build:no-bundle
+```
+
+For a quick visual check, open `pnpm tauri:dev` and confirm the window/app icon renders as expected on your platform.
+
 Create a local unsigned packaged build:
 
 ```sh
