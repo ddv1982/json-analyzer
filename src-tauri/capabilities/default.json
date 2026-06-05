@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Default desktop capability for JSON Analyzer MVP command IPC",
+  "windows": ["main"],
+  "permissions": ["json-analyzer-commands"]
+}

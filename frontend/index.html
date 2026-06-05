@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSON Analyzer</title>
+    <script>
+      ;(() => {
+        const storageKey = 'json-analyzer.themePreference'
+        const validPreferences = ['system', 'light', 'dark']
+        const parsePreference = (value) => validPreferences.includes(value) ? value : 'system'
+        const getSystemTheme = () => {
+          try {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+          } catch {
+            return 'light'
+          }
+        }
+
+        let preference = 'system'
+        try {
+          preference = parsePreference(window.localStorage.getItem(storageKey))
+        } catch {
+          preference = 'system'
+        }
+
+        const resolvedTheme = preference === 'system' ? getSystemTheme() : preference
+        const root = document.documentElement
+        root.dataset.themePreference = preference
+        root.dataset.theme = resolvedTheme
+        root.style.colorScheme = resolvedTheme
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

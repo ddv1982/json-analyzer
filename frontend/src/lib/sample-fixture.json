@@ -1,0 +1,40 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Alice",
+      "department": "Engineering",
+      "profile": {
+        "email": "a@example.com"
+      },
+      "tags": [
+        "admin",
+        "qa"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Bob",
+      "department": "Engineering",
+      "profile": {
+        "email": null
+      },
+      "tags": []
+    },
+    {
+      "id": 3,
+      "name": "Carol",
+      "department": "Design",
+      "profile": {
+        "email": "c@example.com"
+      },
+      "tags": [
+        "qa"
+      ]
+    }
+  ],
+  "metadata": {
+    "total": 3,
+    "source": "fixture"
+  }
+}

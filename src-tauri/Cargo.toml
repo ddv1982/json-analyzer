@@ -1,0 +1,18 @@
+[package]
+name = "json-analyzer-app"
+version = "0.1.0"
+edition = "2024"
+description = "JSON Analyzer desktop application shell"
+license = "MIT"
+
+[build-dependencies]
+tauri-build = { version = "2.6.2", features = [] }
+
+[dependencies]
+json-analyzer = { path = ".." }
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "2.11.2", features = [] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

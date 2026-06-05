@@ -1,0 +1,1 @@
+{"users":[{"id":1,"department":"Engineering","profile":{"email":"a@example.com"},"tags":["admin","qa"]},{"id":2,"department":"Engineering","profile":{"email":null},"tags":[]},{"id":3,"department":"Design","profile":{"email":"c@example.com"},"tags":["qa"]}],"metadata":{"total":3,"source":"fixture"}}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "JSON Analyzer",
+  "version": "0.1.0",
+  "identifier": "com.jsonanalyzer.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm -C frontend run dev",
+    "beforeBuildCommand": "pnpm -C frontend run build",
+    "devUrl": "http://127.0.0.1:5173",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "JSON Analyzer",
+        "width": 1200,
+        "height": 880,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'sha256-wGWVDgkbf2Les6JnXF5LGBaBWzmIjC92dnOa4+KwKu0='; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost; connect-src 'self' ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": "all"
+  }
+}

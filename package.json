@@ -1,0 +1,19 @@
+{
+  "name": "json-analyzer",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "check": "pnpm run check:rust && pnpm run check:frontend && pnpm run check:tauri",
+    "check:rust": "cargo fmt --check && cargo clippy -- -D warnings && cargo test",
+    "check:frontend": "pnpm -C frontend run lint && pnpm -C frontend run typecheck && pnpm -C frontend run test && pnpm -C frontend run build",
+    "check:tauri": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings && cargo test --manifest-path src-tauri/Cargo.toml",
+    "frontend:install": "pnpm install",
+    "tauri:dev": "pnpm exec tauri dev",
+    "tauri:build:no-bundle": "pnpm exec tauri build --no-bundle",
+    "tauri:package:local": "pnpm exec tauri build --config '{\"bundle\":{\"active\":true}}' --no-sign"
+  },
+  "packageManager": "pnpm@11.5.1",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2"
+  }
+}

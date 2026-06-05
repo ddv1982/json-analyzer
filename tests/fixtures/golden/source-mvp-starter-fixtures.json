@@ -1,0 +1,741 @@
+{
+  "metadata": {
+    "captured_at": "2026-06-02",
+    "source_app": "/Users/vriesd/projects/qa-toolbox/json-analyzer",
+    "capture_method": "Read-only execution of source modules with PYTHONDONTWRITEBYTECODE=1",
+    "scope": "Phase 0 MVP starter fixtures",
+    "notes": [
+      "Python json.loads collapses duplicate object keys to the last value; target AST must preserve duplicates by ADR 0004.",
+      "Fixture keys use source DTO names where available; target DTO names may wrap these values in Phase 4.",
+      "Validation fixtures named expected_source_core_validate_json capture json_analyzer.core.validation.validate_json return shape; source route /api/v2/validate wraps accepted data as {valid: true, data: ...}.",
+      "Exact duplicate grouping strings and safe_str JSON spacing are source legacy serialization observations; Phase 2 must lock final target AST serialization."
+    ]
+  },
+  "validation": {
+    "valid_single_root": {
+      "input": "{\"users\":[{\"id\":1,\"name\":\"Alice\"}],\"count\":1}",
+      "expected_source_core_validate_json": {
+        "valid": true,
+        "parsed_data": {
+          "users": [
+            {
+              "id": 1,
+              "name": "Alice"
+            }
+          ],
+          "count": 1
+        },
+        "error": null
+      },
+      "expected_source_route_response": {
+        "valid": true,
+        "data": {
+          "users": [
+            {
+              "id": 1,
+              "name": "Alice"
+            }
+          ],
+          "count": 1
+        }
+      }
+    },
+    "invalid_syntax": {
+      "input": "{\"users\":[{\"id\":1,}]}",
+      "expected_source_core_validate_json": {
+        "valid": false,
+        "parsed_data": null,
+        "error": "Illegal trailing comma before end of object: line 1 column 18 (char 17)"
+      }
+    },
+    "concatenated_roots": {
+      "input": "{\"id\":1}\n{\"id\":2}",
+      "mvp_decision_needed_in_phase_2": "Define whether target validate/analyze accepts concatenated roots as a document list or reports a structured warning/error. Source accepts and normalizes to a list.",
+      "expected_source_core_validate_json": {
+        "valid": true,
+        "parsed_data": [
+          {
+            "id": 1
+          },
+          {
+            "id": 2
+          }
+        ],
+        "error": null
+      }
+    },
+    "request_validation_errors": {
+      "empty": "json_string cannot be empty",
+      "missing": "Missing json_string parameter",
+      "non_string": "json_string must be a string",
+      "too_large": "JSON string too large (max 16MB)"
+    }
+  },
+  "duplicate_keys": {
+    "input": "{\"id\":1,\"id\":2,\"name\":\"last wins in source\"}",
+    "expected_target_ast_observation": {
+      "object_members_in_order": [
+        [
+          "id",
+          1
+        ],
+        [
+          "id",
+          2
+        ],
+        [
+          "name",
+          "last wins in source"
+        ]
+      ],
+      "source_limitation": "The source app cannot verify duplicate-preserving analysis because Python json.loads collapses duplicate keys. This target expectation comes from the locked architecture decision."
+    },
+    "expected_source_core_validate_json_legacy": {
+      "valid": true,
+      "parsed_data": {
+        "id": 2,
+        "name": "last wins in source"
+      },
+      "error": null
+    }
+  },
+  "field_paths_patterns": {
+    "input_data": {
+      "users": [
+        {
+          "id": 1,
+          "name": "Alice",
+          "department": "Engineering",
+          "profile": {
+            "email": "a@example.com"
+          },
+          "tags": [
+            "admin",
+            "qa"
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Bob",
+          "department": "Engineering",
+          "profile": {
+            "email": null
+          },
+          "tags": []
+        },
+        {
+          "id": 3,
+          "name": "Carol",
+          "department": "Design",
+          "profile": {
+            "email": "c@example.com"
+          },
+          "tags": [
+            "qa"
+          ]
+        }
+      ],
+      "metadata": {
+        "total": 3,
+        "source": "fixture"
+      }
+    },
+    "expected_flattened": {
+      "users.0.id": 1,
+      "users.0.name": "Alice",
+      "users.0.department": "Engineering",
+      "users.0.profile.email": "a@example.com",
+      "users.0.tags.0": "admin",
+      "users.0.tags.1": "qa",
+      "users.1.id": 2,
+      "users.1.name": "Bob",
+      "users.1.department": "Engineering",
+      "users.1.profile.email": null,
+      "users.1.tags": [],
+      "users.2.id": 3,
+      "users.2.name": "Carol",
+      "users.2.department": "Design",
+      "users.2.profile.email": "c@example.com",
+      "users.2.tags.0": "qa",
+      "metadata.total": 3,
+      "metadata.source": "fixture"
+    },
+    "expected_field_patterns_subset": {
+      "users.[].id": {
+        "label": "Users Id",
+        "pattern": "users.[].id",
+        "sample_paths": [
+          "users.0.id",
+          "users.1.id",
+          "users.2.id"
+        ],
+        "category": "Identifier",
+        "count": 3
+      },
+      "users.[].department": {
+        "label": "Users Department",
+        "pattern": "users.[].department",
+        "sample_paths": [
+          "users.0.department",
+          "users.1.department",
+          "users.2.department"
+        ],
+        "category": "[]",
+        "count": 3
+      },
+      "users.[].profile.email": {
+        "label": "Profile Email",
+        "pattern": "users.[].profile.email",
+        "sample_paths": [
+          "users.0.profile.email",
+          "users.1.profile.email",
+          "users.2.profile.email"
+        ],
+        "category": "Profile",
+        "count": 3
+      },
+      "users.[].tags.[]": {
+        "label": "Users Tags",
+        "pattern": "users.[].tags.[]",
+        "sample_paths": [
+          "users.0.tags.0",
+          "users.0.tags.1",
+          "users.2.tags.0"
+        ],
+        "category": "Tags",
+        "count": 3
+      }
+    },
+    "expected_values_for_users_department": [
+      [
+        "Engineering",
+        [
+          "users.0.department",
+          "users.1.department"
+        ]
+      ],
+      [
+        "Design",
+        [
+          "users.2.department"
+        ]
+      ]
+    ]
+  },
+  "exact_duplicates": {
+    "input_data": {
+      "data": [
+        {
+          "id": 1,
+          "name": "Alice"
+        },
+        {
+          "id": 2,
+          "name": "Bob"
+        },
+        {
+          "id": 1,
+          "name": "Alice"
+        },
+        {},
+        null,
+        ""
+      ],
+      "other": {
+        "arr": [
+          {
+            "x": 1
+          },
+          {
+            "x": 2
+          }
+        ]
+      }
+    },
+    "expected_source_legacy": {
+      "total_items": 3,
+      "unique_items": 2,
+      "duplicate_groups": 1,
+      "duplicates": {
+        "{\"id\": 1, \"name\": \"Alice\"}": [
+          0,
+          2
+        ]
+      },
+      "has_duplicates": true,
+      "analysis_path": "data (6 items)"
+    },
+    "target_serialization_pending_phase_2": "Source duplicate keys are JSON strings produced by Python json.dumps default separators. Target must lock compact/source-compatible serialization from the duplicate-preserving AST in Phase 2 before treating these strings as final."
+  },
+  "field_duplicates": {
+    "input_data": [
+      {
+        "id": 1,
+        "name": "Alice",
+        "department": "Engineering"
+      },
+      {
+        "id": 2,
+        "name": "Bob",
+        "department": "Engineering"
+      },
+      {
+        "id": 3,
+        "name": "Carol",
+        "department": "Design"
+      },
+      {
+        "id": 4,
+        "name": "ALICE",
+        "department": null
+      },
+      {
+        "id": 5,
+        "name": "alice",
+        "department": "Engineering"
+      }
+    ],
+    "expected_department_case_insensitive": {
+      "field_path": "[].department",
+      "total_items": 3,
+      "unique_values": 2,
+      "duplicate_count": 1,
+      "duplicates": {
+        "engineering": {
+          "count": 3,
+          "source_paths": [
+            "0.department",
+            "1.department",
+            "4.department"
+          ]
+        }
+      },
+      "has_duplicates": true,
+      "all_values_summary": [
+        {
+          "value": "engineering",
+          "count": 3,
+          "is_duplicate": true
+        },
+        {
+          "value": "design",
+          "count": 1,
+          "is_duplicate": false
+        }
+      ]
+    },
+    "expected_name_case_sensitive_summary": {
+      "field_path": "[].name",
+      "total_items": 5,
+      "unique_values": 5,
+      "duplicate_count": 0,
+      "has_duplicates": false
+    },
+    "expected_name_case_insensitive_summary": {
+      "field_path": "[].name",
+      "total_items": 5,
+      "unique_values": 3,
+      "duplicate_count": 1,
+      "duplicates": {
+        "alice": {
+          "count": 3,
+          "source_paths": [
+            "0.name",
+            "3.name",
+            "4.name"
+          ]
+        }
+      },
+      "has_duplicates": true
+    }
+  },
+  "min_max_filled": {
+    "input_data": [
+      {
+        "id": 1,
+        "name": "Sparse",
+        "email": "",
+        "details": {
+          "age": null,
+          "city": ""
+        },
+        "tags": []
+      },
+      {
+        "id": 2,
+        "name": "Full",
+        "email": "full@example.com",
+        "details": {
+          "age": 31,
+          "city": "Amsterdam"
+        },
+        "tags": [
+          "alpha",
+          "beta"
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Medium",
+        "email": null,
+        "details": {
+          "age": 28,
+          "city": "Rotterdam"
+        },
+        "tags": [
+          "solo"
+        ]
+      }
+    ],
+    "expected_deep_true_summary": {
+      "analysis_path": "root",
+      "total_records": 3,
+      "min_records_count": 1,
+      "max_records_count": 1,
+      "min_record": {
+        "index": 0,
+        "filled_count": 2,
+        "total_fields": 5,
+        "completeness_pct": 40.0
+      },
+      "max_record": {
+        "index": 1,
+        "filled_count": 7,
+        "total_fields": 7,
+        "completeness_pct": 100.0
+      },
+      "statistics": {
+        "total_records": 3,
+        "avg_filled_fields": 4.666666666666667,
+        "median_filled_fields": 5.0,
+        "std_filled_fields": 2.516611478423583,
+        "avg_completeness_pct": 74.44444444444444,
+        "field_count_distribution": {
+          "2": 1,
+          "7": 1,
+          "5": 1
+        }
+      },
+      "has_records": true
+    },
+    "expected_deep_false_summary": {
+      "analysis_path": "root",
+      "total_records": 3,
+      "min_records_count": 1,
+      "max_records_count": 1,
+      "min_record": {
+        "index": 0,
+        "filled_count": 3,
+        "total_fields": 5,
+        "completeness_pct": 60.0
+      },
+      "max_record": {
+        "index": 1,
+        "filled_count": 5,
+        "total_fields": 5,
+        "completeness_pct": 100.0
+      },
+      "statistics": {
+        "total_records": 3,
+        "avg_filled_fields": 4.0,
+        "median_filled_fields": 4.0,
+        "std_filled_fields": 1.0,
+        "avg_completeness_pct": 80.0,
+        "field_count_distribution": {
+          "3": 1,
+          "5": 1,
+          "4": 1
+        }
+      },
+      "has_records": true
+    }
+  },
+  "safe_str": {
+    "expected_source_legacy": {
+      "null": "null",
+      "true": "true",
+      "false": "false",
+      "array_json_default_spacing": "[1, 2]",
+      "object_json_default_spacing": "{\"a\": 1}",
+      "string_raw": "Alice",
+      "integer": "42",
+      "float": "3.14"
+    },
+    "target_serialization_pending_phase_2": "Source arrays/objects use Python json.dumps default separators; target plan asks for compact JSON from the AST, so Phase 2 must decide compatibility vs normalization."
+  },
+  "structure_statistics": {
+    "input_ref": "field_paths_patterns.input_data",
+    "expected_source_structure": {
+      "type": "dict",
+      "size": 2,
+      "depth": 4,
+      "field_paths": [
+        "users.0.id",
+        "users.0.name",
+        "users.0.department",
+        "users.0.profile.email",
+        "users.0.tags.0",
+        "users.0.tags.1",
+        "users.1.id",
+        "users.1.name",
+        "users.1.department",
+        "users.1.profile.email",
+        "users.1.tags",
+        "users.2.id",
+        "users.2.name",
+        "users.2.department",
+        "users.2.profile.email",
+        "users.2.tags.0",
+        "metadata.total",
+        "metadata.source"
+      ],
+      "field_count": 18,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "str",
+                  "value": "Alice"
+                },
+                "id": {
+                  "type": "int",
+                  "value": 1
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "union",
+                    "oneOf": [
+                      {
+                        "type": "union",
+                        "oneOf": [
+                          {
+                            "type": "str",
+                            "value": "admin"
+                          },
+                          {
+                            "type": "string",
+                            "value": "unknown"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "str",
+                        "value": "qa"
+                      }
+                    ]
+                  }
+                },
+                "profile": {
+                  "type": "object",
+                  "properties": {
+                    "email": {
+                      "type": "union",
+                      "oneOf": [
+                        {
+                          "type": "union",
+                          "oneOf": [
+                            {
+                              "type": "str",
+                              "value": "a@example.com"
+                            },
+                            {
+                              "type": "NoneType",
+                              "value": null
+                            }
+                          ]
+                        },
+                        {
+                          "type": "str",
+                          "value": "c@example.com"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "department": {
+                  "type": "str",
+                  "value": "Engineering"
+                }
+              }
+            },
+            "length": 3
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "int",
+                "value": 3
+              },
+              "source": {
+                "type": "str",
+                "value": "fixture"
+              }
+            }
+          }
+        }
+      },
+      "top_level_size": 2,
+      "total_items": 2,
+      "container_summary": {
+        "type": "dict"
+      }
+    },
+    "expected_source_statistics": {
+      "total_fields": 18,
+      "type_distribution": {
+        "int": 4,
+        "str": 12,
+        "NoneType": 1,
+        "list": 1
+      },
+      "null_count": 1,
+      "string_length_stats": {
+        "count": 13,
+        "min": 2,
+        "max": 13,
+        "avg": 6.538461538461538
+      },
+      "field_value_distribution": {
+        "users.0.id": {
+          "1": 1
+        },
+        "users.0.name": {
+          "Alice": 1
+        },
+        "users.0.department": {
+          "Engineering": 1
+        },
+        "users.0.profile.email": {
+          "a@example.com": 1
+        },
+        "users.0.tags.0": {
+          "admin": 1
+        },
+        "users.0.tags.1": {
+          "qa": 1
+        },
+        "users.1.id": {
+          "2": 1
+        },
+        "users.1.name": {
+          "Bob": 1
+        },
+        "users.1.department": {
+          "Engineering": 1
+        },
+        "users.1.tags": {
+          "[]": 1
+        },
+        "users.2.id": {
+          "3": 1
+        },
+        "users.2.name": {
+          "Carol": 1
+        },
+        "users.2.department": {
+          "Design": 1
+        },
+        "users.2.profile.email": {
+          "c@example.com": 1
+        },
+        "users.2.tags.0": {
+          "qa": 1
+        },
+        "metadata.total": {
+          "3": 1
+        },
+        "metadata.source": {
+          "fixture": 1
+        }
+      },
+      "unique_field_paths": 2
+    },
+    "target_notes": "Source uses Python type names and flattened terminal values. Phase 3/4 may wrap DTOs but should preserve user-visible counts/paths unless an intentional target decision says otherwise."
+  },
+  "mvp_regressions_phase_7": {
+    "parser_edge_cases": {
+      "whitespace_only": {
+        "input": "  \n\t  ",
+        "expected_target_error": "expected JSON value"
+      },
+      "trailing_garbage_after_valid_root": {
+        "input": "[1, 2] true",
+        "expected_target_error": "trailing characters after JSON root"
+      },
+      "scalar_roots": {
+        "inputs": ["true", "42", "\"done\""],
+        "expected_target_contract": "strict validate/analyze accepts any single RFC 8259 JSON root, including scalar roots"
+      },
+      "mixed_concatenated_documents": {
+        "input": "{\"id\":1}\n[2]\ntrue\n\"done\"",
+        "expected_document_count_for_explicit_document_parser": 4,
+        "expected_strict_service_contract": "validate/analyze reject concatenated roots as trailing characters after JSON root"
+      }
+    },
+    "numeric_semantics": {
+      "large_integer_pair_equal": ["900719925474099312345", "900719925474099312345.0"],
+      "small_exponent_decimal_display": {
+        "input": "1.25e-2",
+        "expected_safe_str": "0.0125"
+      },
+      "non_finite_rejected": ["NaN", "Infinity"],
+      "huge_decimal_expansion_rejected": ["1e1000001", "1e-1000001"]
+    },
+    "duplicates": {
+      "duplicate_key_order_sensitive_records": {
+        "raw_input": "{\"records\":[{\"id\":1,\"id\":2},{\"id\":2,\"id\":1},{\"id\":1,\"id\":2}]}",
+        "expected_duplicate_value": "{\"id\":1,\"id\":2}",
+        "expected_indexes": [0, 2],
+        "target_note": "Stored as a raw JSON string because parsed JSON fixture objects cannot preserve repeated keys."
+      },
+      "sparse_field_duplicates": {
+        "input": [
+          { "email": "a@example.com" },
+          { "name": "missing email" },
+          { "email": null },
+          { "email": "A@example.com" },
+          { "email": "b@example.com" },
+          { "email": "a@example.com" }
+        ],
+        "expected_case_insensitive": {
+          "total_items": 4,
+          "unique_values": 2,
+          "duplicate_value": "a@example.com",
+          "source_paths": ["0.email", "3.email", "5.email"]
+        }
+      }
+    },
+    "min_max_filled": {
+      "ties_and_non_object_records": {
+        "expected_contract": "Non-object array items are ignored for record scoring; all min/max ties are returned in input order."
+      },
+      "no_suitable_records": {
+        "input": { "data": [1, 2, 3, 4, 5] },
+        "expected_has_records": false,
+        "expected_analysis_path": "No suitable array found"
+      }
+    },
+    "service_errors": {
+      "size_limit_boundary": {
+        "generated_test_note": "Regression tests use a tiny generated max_json_bytes config instead of committing a 16 MiB payload."
+      },
+      "known_mvp_exclusions": [
+        "schema validation",
+        "concatenated-root normalization in service validate/analyze",
+        "composite duplicate grouping",
+        "advanced Values Explorer",
+        "HTTP/OpenAPI adapter",
+        "curl execution",
+        "PDF export",
+        "SQLite persistence"
+      ]
+    }
+  }
+}

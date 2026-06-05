@@ -1,0 +1,15 @@
+[package]
+name = "json-analyzer"
+version = "0.1.0"
+edition = "2024"
+description = "Local-first JSON analysis core for the JSON Analyzer desktop app"
+license = "MIT"
+
+[lib]
+name = "json_analyzer"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }

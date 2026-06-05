@@ -1,0 +1,23 @@
+[[permission]]
+identifier = "json-analyzer-commands"
+description = "Allows the JSON Analyzer MVP command IPC wrappers and no shell, filesystem, or network plugin commands."
+commands.allow = [
+  "validate_json",
+  "format_json",
+  "analyze_json",
+  "get_fields",
+  "find_duplicates",
+  "min_max_filled",
+  "discover_values_fields",
+  "analyze_values",
+  "analyze_advanced_field_duplicates",
+  "analyze_composite_duplicates",
+  "parse_curl",
+  "validate_curl_guardrail",
+  "execute_curl",
+  "start_curl_job",
+  "get_curl_job_results",
+  "cancel_curl_job",
+  "get_config",
+  "get_health",
+]

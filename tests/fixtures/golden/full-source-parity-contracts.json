@@ -1,0 +1,1050 @@
+{
+  "metadata": {
+    "captured_at": "2026-06-03",
+    "source_app": "/Users/vriesd/projects/qa-toolbox/json-analyzer",
+    "target_app": "/Users/vriesd/projects/json-analyzer",
+    "scope": "Item 1 contract and fixture expansion foundation for full source functionality parity",
+    "capture_method": "Source-inspired contracts from docs/research/source-contract-notes.md and docs/plans/full-source-functionality-parity-2026-06-03.md, with target-decided desktop IPC/security choices",
+    "data_only": true,
+    "notes": [
+      "No Rust analyzers, Tauri command surfaces, frontend UI, curl execution, or PDF bytes are introduced by this fixture.",
+      "Shapes are target contracts for future DTO/service work; fixture section names are not implemented command names.",
+      "Pagination is 1-based in user-facing request/response contract data.",
+      "Duplicate object keys are represented as raw JSON strings because JSON fixture objects cannot preserve repeated member names."
+    ]
+  },
+  "shared_dataset": {
+    "record_count": 8,
+    "records": [
+      {
+        "id": 1,
+        "name": "Alice",
+        "department": "Engineering",
+        "role": "Developer",
+        "location": "Amsterdam",
+        "status": "active",
+        "profile": {
+          "email": "alice@example.com"
+        },
+        "tags": [
+          "admin",
+          "qa"
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Bob",
+        "department": "Engineering",
+        "role": "Developer",
+        "location": "Rotterdam",
+        "status": "active",
+        "profile": {
+          "email": null
+        },
+        "tags": [
+          "qa"
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Carol",
+        "department": "Design",
+        "role": "Designer",
+        "location": "Amsterdam",
+        "status": "active",
+        "profile": {
+          "email": "carol@example.com"
+        },
+        "tags": []
+      },
+      {
+        "id": 4,
+        "name": "Dan",
+        "department": "Engineering",
+        "role": "Manager",
+        "location": "Utrecht",
+        "status": "inactive",
+        "profile": {
+          "email": "dan@example.com"
+        },
+        "tags": [
+          "lead"
+        ]
+      },
+      {
+        "id": 5,
+        "name": "Eve",
+        "department": "Engineering",
+        "role": "Developer",
+        "location": "Amsterdam",
+        "status": "active",
+        "profile": {
+          "email": "eve@example.com"
+        },
+        "tags": [
+          "qa",
+          "release"
+        ]
+      },
+      {
+        "id": 6,
+        "name": "Frank",
+        "department": "Support",
+        "role": "Analyst",
+        "location": "Amsterdam",
+        "status": "active",
+        "profile": {
+          "email": "frank@example.com"
+        },
+        "tags": [
+          "support"
+        ]
+      },
+      {
+        "id": 7,
+        "name": "Grace",
+        "department": "Support",
+        "role": "Analyst",
+        "location": "Haarlem",
+        "status": "inactive",
+        "profile": {
+          "email": "grace@example.com"
+        },
+        "tags": []
+      },
+      {
+        "id": 8,
+        "name": "Heidi",
+        "department": "Design",
+        "role": "Designer",
+        "location": "Amsterdam",
+        "status": "active",
+        "profile": {},
+        "tags": [
+          "research"
+        ]
+      }
+    ],
+    "field_patterns": [
+      "[].id",
+      "[].name",
+      "[].department",
+      "[].role",
+      "[].location",
+      "[].status",
+      "[].profile.email",
+      "[].tags.[]"
+    ],
+    "raw_input_with_duplicate_keys": "{\"records\":[{\"id\":1,\"id\":2,\"department\":\"Engineering\"},{\"id\":1,\"id\":2,\"department\":\"Engineering\"},{\"id\":2,\"id\":1,\"department\":\"Engineering\"}]}",
+    "duplicate_key_target_expectation": {
+      "exact_duplicate_group_value": "{\"id\":1,\"id\":2,\"department\":\"Engineering\"}",
+      "indexes": [
+        0,
+        1
+      ],
+      "source_limitation": "Source Python parsing collapses duplicate keys; target analysis must preserve object member order."
+    }
+  },
+  "json_input_ux": {
+    "target_decisions": {
+      "debounced_validation_ms": 500,
+      "load_example_source": "bundled_sample_fixture",
+      "format_behavior": "pretty_print_current_valid_json_in_editor_with_duplicate_preserving_ast",
+      "clear_behavior": "clear_editor_validation_analysis_and_errors",
+      "flatten_option_request_field": "flatten",
+      "flatten_semantics": "one_level_only_when_analysis_root_is_list_of_lists",
+      "flatten_scope": "analyze_json_only",
+      "validation_mode": "strict_single_root_unchanged",
+      "field_path_normalization_changes": false,
+      "recursive_flattening": false
+    },
+    "flatten_contract": {
+      "request": {
+        "json_string": "[[{\"id\":1},{\"id\":1}],[],[{\"id\":2}]]",
+        "flatten": true
+      },
+      "effective_analysis_root": [
+        {
+          "id": 1
+        },
+        {
+          "id": 1
+        },
+        {
+          "id": 2
+        }
+      ],
+      "expected_analysis_notes": {
+        "structure_size": 3,
+        "exact_duplicate_indexes": [
+          0,
+          1
+        ],
+        "strict_validation_document_count": 1
+      }
+    }
+  },
+  "values_explorer": {
+    "target_decisions": {
+      "field_selection_min": 1,
+      "field_selection_max": 5,
+      "page_base": 1,
+      "default_page_size": 25,
+      "allowed_page_sizes": [
+        10,
+        25,
+        50,
+        100
+      ],
+      "default_sort": {
+        "by": "count",
+        "direction": "desc"
+      },
+      "stable_tie_breaker": [
+        "display_value_ascending",
+        "first_source_path_ascending"
+      ],
+      "missing_values": "excluded_by_default",
+      "null_values": "included_as_display_value_null_when_field_path_exists",
+      "parent_items": "nearest_array_record_object_with_zero_based_record_index"
+    },
+    "field_discovery_contract": {
+      "request": {
+        "json_ref": "shared_dataset.records",
+        "search": "dep",
+        "limit": 10
+      },
+      "expected_fields": [
+        {
+          "field_path": "[].department",
+          "label": "Department",
+          "type_hints": [
+            "str"
+          ],
+          "non_null_count": 8,
+          "null_count": 0,
+          "missing_count": 0,
+          "unique_value_count": 3,
+          "sample_values": [
+            "Engineering",
+            "Design",
+            "Support"
+          ]
+        }
+      ]
+    },
+    "single_field_values_contract": {
+      "request": {
+        "selected_fields": [
+          "[].department"
+        ],
+        "search": null,
+        "sort": {
+          "by": "count",
+          "direction": "desc"
+        },
+        "page": 1,
+        "page_size": 2,
+        "include_parent_items": true
+      },
+      "expected_response": {
+        "total_groups": 3,
+        "page": 1,
+        "page_size": 2,
+        "has_next_page": true,
+        "groups": [
+          {
+            "key": [
+              "Engineering"
+            ],
+            "display_value": "Engineering",
+            "count": 4,
+            "source_paths": [
+              "0.department",
+              "1.department",
+              "3.department",
+              "4.department"
+            ],
+            "parent_items": [
+              {
+                "record_index": 0,
+                "source_path": "0",
+                "summary": {
+                  "id": 1,
+                  "name": "Alice",
+                  "department": "Engineering"
+                }
+              },
+              {
+                "record_index": 1,
+                "source_path": "1",
+                "summary": {
+                  "id": 2,
+                  "name": "Bob",
+                  "department": "Engineering"
+                }
+              },
+              {
+                "record_index": 3,
+                "source_path": "3",
+                "summary": {
+                  "id": 4,
+                  "name": "Dan",
+                  "department": "Engineering"
+                }
+              },
+              {
+                "record_index": 4,
+                "source_path": "4",
+                "summary": {
+                  "id": 5,
+                  "name": "Eve",
+                  "department": "Engineering"
+                }
+              }
+            ]
+          },
+          {
+            "key": [
+              "Design"
+            ],
+            "display_value": "Design",
+            "count": 2,
+            "source_paths": [
+              "2.department",
+              "7.department"
+            ],
+            "parent_items": [
+              {
+                "record_index": 2,
+                "source_path": "2",
+                "summary": {
+                  "id": 3,
+                  "name": "Carol",
+                  "department": "Design"
+                }
+              },
+              {
+                "record_index": 7,
+                "source_path": "7",
+                "summary": {
+                  "id": 8,
+                  "name": "Heidi",
+                  "department": "Design"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "search_sort_pagination_contract": {
+      "request": {
+        "selected_fields": [
+          "[].department"
+        ],
+        "search": "sup",
+        "sort": {
+          "by": "value",
+          "direction": "asc"
+        },
+        "page": 1,
+        "page_size": 10
+      },
+      "expected_response": {
+        "total_groups": 1,
+        "groups": [
+          {
+            "key": [
+              "Support"
+            ],
+            "display_value": "Support",
+            "count": 2,
+            "source_paths": [
+              "5.department",
+              "6.department"
+            ]
+          }
+        ]
+      }
+    },
+    "multi_field_values_contract": {
+      "request": {
+        "selected_fields": [
+          "[].department",
+          "[].role"
+        ],
+        "sort": {
+          "by": "count",
+          "direction": "desc"
+        },
+        "page": 1,
+        "page_size": 10
+      },
+      "expected_groups": [
+        {
+          "key": [
+            "Engineering",
+            "Developer"
+          ],
+          "count": 3,
+          "record_indexes": [
+            0,
+            1,
+            4
+          ]
+        },
+        {
+          "key": [
+            "Design",
+            "Designer"
+          ],
+          "count": 2,
+          "record_indexes": [
+            2,
+            7
+          ]
+        },
+        {
+          "key": [
+            "Support",
+            "Analyst"
+          ],
+          "count": 2,
+          "record_indexes": [
+            5,
+            6
+          ]
+        },
+        {
+          "key": [
+            "Engineering",
+            "Manager"
+          ],
+          "count": 1,
+          "record_indexes": [
+            3
+          ]
+        }
+      ]
+    }
+  },
+  "advanced_duplicates": {
+    "target_decisions": {
+      "single_field_duplicates_include_all_values_summary": true,
+      "duplicate_groups_only_include_count_greater_than_one": true,
+      "filter_matching_is_case_sensitive_by_default": true,
+      "composite_field_count_min": 2,
+      "composite_field_count_max": 5,
+      "composite_field_paths_must_be_unique": true,
+      "parent_items_are_included_when_requested": true
+    },
+    "single_field_with_filter_contract": {
+      "request": {
+        "field_path": "[].department",
+        "case_sensitive": false,
+        "filter": {
+          "field_path": "[].status",
+          "value": "active"
+        },
+        "include_parent_items": true,
+        "page": 1,
+        "page_size": 10
+      },
+      "expected_response": {
+        "total_items_considered": 6,
+        "duplicate_group_count": 2,
+        "duplicates": [
+          {
+            "value": "engineering",
+            "display_value": "Engineering",
+            "count": 3,
+            "record_indexes": [
+              0,
+              1,
+              4
+            ],
+            "source_paths": [
+              "0.department",
+              "1.department",
+              "4.department"
+            ],
+            "parent_items": [
+              {
+                "record_index": 0,
+                "summary": {
+                  "id": 1,
+                  "name": "Alice",
+                  "status": "active"
+                }
+              },
+              {
+                "record_index": 1,
+                "summary": {
+                  "id": 2,
+                  "name": "Bob",
+                  "status": "active"
+                }
+              },
+              {
+                "record_index": 4,
+                "summary": {
+                  "id": 5,
+                  "name": "Eve",
+                  "status": "active"
+                }
+              }
+            ]
+          },
+          {
+            "value": "design",
+            "display_value": "Design",
+            "count": 2,
+            "record_indexes": [
+              2,
+              7
+            ],
+            "source_paths": [
+              "2.department",
+              "7.department"
+            ],
+            "parent_items": [
+              {
+                "record_index": 2,
+                "summary": {
+                  "id": 3,
+                  "name": "Carol",
+                  "status": "active"
+                }
+              },
+              {
+                "record_index": 7,
+                "summary": {
+                  "id": 8,
+                  "name": "Heidi",
+                  "status": "active"
+                }
+              }
+            ]
+          }
+        ],
+        "all_values_summary": [
+          {
+            "value": "engineering",
+            "display_value": "Engineering",
+            "count": 3,
+            "is_duplicate": true
+          },
+          {
+            "value": "design",
+            "display_value": "Design",
+            "count": 2,
+            "is_duplicate": true
+          },
+          {
+            "value": "support",
+            "display_value": "Support",
+            "count": 1,
+            "is_duplicate": false
+          }
+        ]
+      }
+    },
+    "composite_duplicates_contract": {
+      "request": {
+        "field_paths": [
+          "[].department",
+          "[].role"
+        ],
+        "filter": null,
+        "case_sensitive": true,
+        "include_parent_items": true,
+        "page": 1,
+        "page_size": 10
+      },
+      "expected_response": {
+        "field_paths": [
+          "[].department",
+          "[].role"
+        ],
+        "duplicate_group_count": 3,
+        "duplicates": [
+          {
+            "key": [
+              "Engineering",
+              "Developer"
+            ],
+            "count": 3,
+            "record_indexes": [
+              0,
+              1,
+              4
+            ],
+            "source_paths": [
+              "0.department",
+              "0.role",
+              "1.department",
+              "1.role",
+              "4.department",
+              "4.role"
+            ],
+            "parent_items": [
+              {
+                "record_index": 0,
+                "summary": {
+                  "id": 1,
+                  "name": "Alice",
+                  "department": "Engineering",
+                  "role": "Developer"
+                }
+              },
+              {
+                "record_index": 1,
+                "summary": {
+                  "id": 2,
+                  "name": "Bob",
+                  "department": "Engineering",
+                  "role": "Developer"
+                }
+              },
+              {
+                "record_index": 4,
+                "summary": {
+                  "id": 5,
+                  "name": "Eve",
+                  "department": "Engineering",
+                  "role": "Developer"
+                }
+              }
+            ]
+          },
+          {
+            "key": [
+              "Design",
+              "Designer"
+            ],
+            "count": 2,
+            "record_indexes": [
+              2,
+              7
+            ],
+            "source_paths": [
+              "2.department",
+              "2.role",
+              "7.department",
+              "7.role"
+            ],
+            "parent_items": [
+              {
+                "record_index": 2,
+                "summary": {
+                  "id": 3,
+                  "name": "Carol",
+                  "department": "Design",
+                  "role": "Designer"
+                }
+              },
+              {
+                "record_index": 7,
+                "summary": {
+                  "id": 8,
+                  "name": "Heidi",
+                  "department": "Design",
+                  "role": "Designer"
+                }
+              }
+            ]
+          },
+          {
+            "key": [
+              "Support",
+              "Analyst"
+            ],
+            "count": 2,
+            "record_indexes": [
+              5,
+              6
+            ],
+            "source_paths": [
+              "5.department",
+              "5.role",
+              "6.department",
+              "6.role"
+            ],
+            "parent_items": [
+              {
+                "record_index": 5,
+                "summary": {
+                  "id": 6,
+                  "name": "Frank",
+                  "department": "Support",
+                  "role": "Analyst"
+                }
+              },
+              {
+                "record_index": 6,
+                "summary": {
+                  "id": 7,
+                  "name": "Grace",
+                  "department": "Support",
+                  "role": "Analyst"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "validation_error_contracts": [
+      {
+        "case": "duplicate_composite_fields",
+        "request": {
+          "field_paths": [
+            "[].department",
+            "[].department"
+          ]
+        },
+        "expected_problem": {
+          "error_type": "invalid_request",
+          "title": "Invalid request",
+          "status": 400,
+          "detail": "field_paths must contain unique fields",
+          "invalid_params": [
+            {
+              "name": "field_paths",
+              "reason": "field_paths must contain unique fields"
+            }
+          ]
+        }
+      },
+      {
+        "case": "too_few_composite_fields",
+        "request": {
+          "field_paths": [
+            "[].department"
+          ]
+        },
+        "expected_problem": {
+          "error_type": "invalid_request",
+          "title": "Invalid request",
+          "status": 400,
+          "detail": "field_paths supports 2 to 5 fields",
+          "invalid_params": [
+            {
+              "name": "field_paths",
+              "reason": "field_paths supports 2 to 5 fields"
+            }
+          ]
+        }
+      },
+      {
+        "case": "too_many_composite_fields",
+        "request": {
+          "field_paths": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f"
+          ]
+        },
+        "expected_problem": {
+          "error_type": "invalid_request",
+          "title": "Invalid request",
+          "status": 400,
+          "detail": "field_paths supports 2 to 5 fields",
+          "invalid_params": [
+            {
+              "name": "field_paths",
+              "reason": "field_paths supports 2 to 5 fields"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "curl_executor": {
+    "target_decisions": {
+      "parse_preview_does_not_execute_network": true,
+      "execution_when_added_is_rust_owned_not_frontend_fetch": true,
+      "sqlite_persistence": "deferred_not_needed_for_desktop",
+      "sensitive_headers_redacted_in_preview": [
+        "authorization",
+        "proxy-authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key"
+      ],
+      "bearer_token_extraction": "report_presence_and_redacted_preview_only"
+    },
+    "parser_examples": [
+      {
+        "case": "get_with_accept_header",
+        "curl": "curl -H 'Accept: application/json' https://api.example.com/users?limit=2",
+        "expected_parse": {
+          "method": "GET",
+          "url": "https://api.example.com/users?limit=2",
+          "headers": [
+            {
+              "name": "Accept",
+              "value": "application/json",
+              "redacted": false
+            }
+          ],
+          "body": null,
+          "auth": {
+            "bearer_token_present": false
+          },
+          "supported_options": [],
+          "warnings": []
+        }
+      },
+      {
+        "case": "post_json_with_bearer",
+        "curl": "curl -X POST https://api.example.com/users -H 'Authorization: Bearer secret-token' -H 'Content-Type: application/json' --data '{\"name\":\"Alice\"}'",
+        "expected_parse": {
+          "method": "POST",
+          "url": "https://api.example.com/users",
+          "headers": [
+            {
+              "name": "Authorization",
+              "value": "Bearer ***",
+              "redacted": true
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json",
+              "redacted": false
+            }
+          ],
+          "body": "{\"name\":\"Alice\"}",
+          "body_kind": "json_string",
+          "auth": {
+            "bearer_token_present": true,
+            "scheme": "Bearer"
+          },
+          "supported_options": [
+            "-X",
+            "-H",
+            "--data"
+          ],
+          "warnings": []
+        }
+      },
+      {
+        "case": "unsupported_file_upload",
+        "curl": "curl -F upload=@secret.txt https://api.example.com/upload",
+        "expected_problem": {
+          "error_type": "unsupported_file_upload_option",
+          "title": "Unsupported curl file upload option",
+          "status": 400,
+          "detail": "File upload curl options are not supported by the desktop curl parser",
+          "invalid_params": [
+            {
+              "name": "curl",
+              "reason": "unsupported file upload option -F"
+            }
+          ]
+        }
+      }
+    ],
+    "guardrail_outcomes": [
+      {
+        "case": "allow_public_https",
+        "request": {
+          "method": "GET",
+          "url": "https://api.example.com/users"
+        },
+        "expected_decision": {
+          "allowed": true,
+          "reason": "public_https_url"
+        }
+      },
+      {
+        "case": "deny_localhost",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:3000/private"
+        },
+        "expected_decision": {
+          "allowed": false,
+          "error_type": "curl_guardrail_denied",
+          "reason": "localhost_targets_are_blocked_by_default"
+        }
+      },
+      {
+        "case": "deny_private_ipv4",
+        "request": {
+          "method": "GET",
+          "url": "http://192.168.1.10/status"
+        },
+        "expected_decision": {
+          "allowed": false,
+          "error_type": "curl_guardrail_denied",
+          "reason": "private_network_targets_are_blocked_by_default"
+        }
+      },
+      {
+        "case": "deny_non_http_scheme",
+        "request": {
+          "method": "GET",
+          "url": "file:///etc/passwd"
+        },
+        "expected_decision": {
+          "allowed": false,
+          "error_type": "curl_guardrail_denied",
+          "reason": "only_http_and_https_schemes_are_supported"
+        }
+      },
+      {
+        "case": "deny_redirect_to_private_network",
+        "request": {
+          "method": "GET",
+          "url": "https://api.example.com/redirect-to-localhost"
+        },
+        "redirect_target": "http://127.0.0.1/admin",
+        "expected_decision": {
+          "allowed": false,
+          "error_type": "curl_guardrail_denied",
+          "reason": "redirect_target_blocked"
+        }
+      }
+    ]
+  },
+  "config": {
+    "current_mvp_config_contract": {
+      "limits": {
+        "max_json_bytes": 16777216,
+        "max_json_depth": 512
+      },
+      "validation": {
+        "schema_json": null,
+        "schema_path": null,
+        "enforcement": "disabled"
+      }
+    },
+    "expanded_frontend_consumed_config_contract": {
+      "limits": {
+        "max_json_bytes": 16777216,
+        "max_json_depth": 512,
+        "values_explorer": {
+          "max_selected_fields": 5,
+          "default_page_size": 25,
+          "page_sizes": [
+            10,
+            25,
+            50,
+            100
+          ],
+          "max_page_size": 100,
+          "max_parent_items_per_group": 100
+        },
+        "duplicates": {
+          "composite_min_fields": 2,
+          "composite_max_fields": 5,
+          "default_page_size": 25,
+          "max_page_size": 100
+        },
+        "curl": {
+          "enabled": true,
+          "default_timeout_ms": 30000,
+          "max_timeout_ms": 120000,
+          "max_response_bytes": 1048576,
+          "max_batch_size": 100,
+          "large_batch_confirmation_threshold": 20,
+          "allow_private_networks_by_default": false
+        }
+      },
+      "features": {
+        "values_explorer": true,
+        "advanced_duplicates": true,
+        "pdf_export": false,
+        "curl_executor": true,
+        "curl_single_request_execution": true,
+        "curl_jobs": true,
+        "curl_batch": true,
+        "curl_cancel": true,
+        "metrics_ui": false,
+        "http_openapi_adapter": false,
+        "sqlite_curl_jobs": false
+      }
+    }
+  },
+  "error_shapes": {
+    "target_decisions": {
+      "shape": "ProblemDetails-like flattened AppError",
+      "status_is_present_for_user_visible_errors": true,
+      "invalid_params_are_omitted_when_empty": true,
+      "parse_errors_include_position": true,
+      "future_http_adapter_may_map_status_without_changing_service_shape": true
+    },
+    "examples": [
+      {
+        "case": "values_page_out_of_range",
+        "problem": {
+          "error_type": "invalid_request",
+          "title": "Invalid request",
+          "status": 400,
+          "detail": "page must be greater than or equal to 1",
+          "invalid_params": [
+            {
+              "name": "page",
+              "reason": "page must be greater than or equal to 1"
+            }
+          ]
+        }
+      },
+      {
+        "case": "json_parse_error",
+        "problem": {
+          "error_type": "json_parse_error",
+          "title": "Invalid JSON",
+          "status": 400,
+          "detail": "trailing characters after JSON root",
+          "position": {
+            "offset": 9,
+            "line": 2,
+            "column": 1
+          }
+        }
+      },
+      {
+        "case": "curl_guardrail_denied",
+        "problem": {
+          "error_type": "curl_guardrail_denied",
+          "title": "Curl request blocked",
+          "status": 403,
+          "detail": "localhost_targets_are_blocked_by_default",
+          "invalid_params": [
+            {
+              "name": "url",
+              "reason": "localhost_targets_are_blocked_by_default"
+            }
+          ]
+        }
+      },
+      {
+        "case": "unsupported_config",
+        "problem": {
+          "error_type": "unsupported_config",
+          "title": "Unsupported configuration",
+          "status": 501,
+          "detail": "schema validation is not implemented yet",
+          "invalid_params": [
+            {
+              "name": "validation.schema_json",
+              "reason": "schema validation is not implemented yet"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "deliberate_deferred_items": [
+    "No source OpenAPI route fixture is added because desktop parity maps operations to Tauri IPC; HTTP/OpenAPI remains a future optional adapter.",
+    "No metrics fixture is added because metrics are diagnostics-only and not user-visible parity.",
+    "No PDF byte snapshot is added because Item 1 only locks report input data and deterministic ordering.",
+    "No SQLite job persistence fixture is added because desktop curl jobs are target-decided as in-memory only."
+  ]
+}
