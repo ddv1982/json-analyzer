@@ -179,6 +179,36 @@ jobs:
       - name: Normalize Debian desktop id
         run: python3 scripts/normalize_linux_deb_desktop_id.py "src-tauri/target/${TAURI_TARGET}/release/bundle/deb/*.deb"
 
+      - name: Normalize Debian package filename
+        run: |
+          set -euo pipefail
+
+          deb_dir="src-tauri/target/${TAURI_TARGET}/release/bundle/deb"
+          shopt -s nullglob
+          deb_packages=("${deb_dir}"/*.deb)
+
+          if [ ${#deb_packages[@]} -eq 0 ]; then
+            echo "No Debian packages found in ${deb_dir}." >&2
+            exit 1
+          fi
+
+          for deb in "${deb_packages[@]}"; do
+            package="$(dpkg-deb --field "${deb}" Package)"
+            version="$(dpkg-deb --field "${deb}" Version)"
+            architecture="$(dpkg-deb --field "${deb}" Architecture)"
+            canonical="${deb_dir}/${package}_${version}_${architecture}.deb"
+
+            if [ "${deb}" != "${canonical}" ]; then
+              if [ -e "${canonical}" ]; then
+                echo "Cannot rename ${deb}: ${canonical} already exists." >&2
+                exit 1
+              fi
+
+              mv "${deb}" "${canonical}"
+              echo "Renamed ${deb} to ${canonical}"
+            fi
+          done
+
       - name: Validate Debian package metadata
         env:
           DEB_METADATA_REPORT: deb-metadata-report.json
