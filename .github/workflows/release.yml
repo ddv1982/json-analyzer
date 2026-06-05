@@ -56,8 +56,6 @@ jobs:
             os: ubuntu-22.04
           - label: macOS
             os: macos-latest
-          - label: Windows
-            os: windows-latest
 
     steps:
       - name: Checkout repository
@@ -123,9 +121,7 @@ jobs:
               \( -name '*.AppImage' \
               -o -name '*.deb' \
               -o -name '*.rpm' \
-              -o -name '*.dmg' \
-              -o -name '*.msi' \
-              -o -name '*.exe' \) \
+              -o -name '*.dmg' \) \
               -print0
           )
 

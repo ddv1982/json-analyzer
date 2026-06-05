@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="JSON Analyzer">
+  <defs>
+    <linearGradient id="bg" x1="72" x2="440" y1="56" y2="456" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="0.55" stop-color="#1d4ed8"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="lens" x1="284" x2="408" y1="276" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d1fae5"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <path d="M172 158c-34 18-54 52-54 92s20 74 54 92" fill="none" stroke="#a7f3d0" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M340 158c34 18 54 52 54 92s-20 74-54 92" fill="none" stroke="#bfdbfe" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M250 146 210 368" fill="none" stroke="#f8fafc" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="318" cy="302" r="64" fill="none" stroke="url(#lens)" stroke-width="32"/>
+  <path d="m363 347 58 58" fill="none" stroke="#f8fafc" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="294" cy="278" r="10" fill="#f8fafc"/>
+  <circle cx="338" cy="304" r="10" fill="#f8fafc"/>
+</svg>
