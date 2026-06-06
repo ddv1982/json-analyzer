@@ -1,7 +1,7 @@
 {
   "name": "json-analyzer",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "scripts": {
     "check": "pnpm run check:rust && pnpm run check:frontend && pnpm run check:tauri",
     "check:rust": "cargo fmt --check && cargo clippy -- -D warnings && cargo test",
