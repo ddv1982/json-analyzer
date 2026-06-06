@@ -9,6 +9,8 @@ mod config_errors;
 mod dto_serialization;
 #[path = "service/parity_contracts.rs"]
 mod parity_contracts;
+#[path = "service/performance_baseline.rs"]
+mod performance_baseline;
 #[path = "service/validation_format_analysis.rs"]
 mod validation_format_analysis;
 #[path = "service/values.rs"]

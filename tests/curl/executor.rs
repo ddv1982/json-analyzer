@@ -410,3 +410,45 @@ fn execute_curl_strips_sensitive_headers_on_cross_origin_redirects() {
     );
     assert!(seen[1].headers.iter().any(|header| header.name == "Accept"));
 }
+
+#[test]
+fn execute_curl_follows_relative_same_origin_redirects_without_stripping_headers() {
+    let client = SequenceCurlClient::new(vec![
+        Ok(CurlHttpClientResponse {
+            status: 302,
+            status_text: Some("Found".to_string()),
+            headers: vec![RawCurlHeader {
+                name: "Location".to_string(),
+                value: "/next".to_string(),
+            }],
+            body: Vec::new(),
+            body_truncated: false,
+            response_bytes: 0,
+        }),
+        Ok(mock_response(200, b"ok")),
+    ]);
+
+    let response = execute_curl_request_with_client(
+        CurlExecuteRequest {
+            curl: "curl -H 'Authorization: Bearer secret-token' -H 'Accept: application/json' http://93.184.216.34/start".to_string(),
+            timeout_ms: Some(1_000),
+            follow_redirects: true,
+        },
+        &CurlLimitsConfig::default(),
+        &client,
+    )
+    .unwrap();
+
+    assert_eq!(response.response.unwrap().status, 200);
+    let seen = client.seen_requests();
+    assert_eq!(seen.len(), 2);
+    assert_eq!(seen[0].url, "http://93.184.216.34/start");
+    assert_eq!(seen[1].url, "http://93.184.216.34/next");
+    assert!(
+        seen[1]
+            .headers
+            .iter()
+            .any(|header| header.name == "Authorization")
+    );
+    assert!(seen[1].headers.iter().any(|header| header.name == "Accept"));
+}

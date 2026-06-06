@@ -365,10 +365,29 @@ fn capability_allows_only_the_json_analyzer_command_permission_set() {
     assert!(tauri_conf.contains("\"csp\": \"default-src 'self'"));
     assert!(!tauri_conf.contains("\"csp\": null"));
 
+    let allowed_commands = extract_allowed_command_names(permissions);
+    assert_eq!(allowed_commands, REQUIRED_COMMANDS);
+
     for command in REQUIRED_COMMANDS {
         assert!(
             permissions.contains(&format!("\"{command}\"")),
             "missing command permission for {command}"
         );
     }
+}
+
+fn extract_allowed_command_names(permissions: &str) -> Vec<&str> {
+    permissions
+        .lines()
+        .skip_while(|line| !line.trim_start().starts_with("commands.allow = ["))
+        .skip(1)
+        .take_while(|line| !line.trim_start().starts_with(']'))
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            trimmed
+                .strip_prefix('"')
+                .and_then(|value| value.split_once('"'))
+                .map(|(command, _)| command)
+        })
+        .collect()
 }

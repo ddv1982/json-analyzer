@@ -1,0 +1,365 @@
+:root {
+  color-scheme: light;
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Design tokens: use --space-* for raw scale, --gap-* for relationships,
+     --inset-* for padding, and --control-height-* for interactive targets. */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --gap-xs: var(--space-1);
+  --gap-sm: var(--space-2);
+  --gap-md: var(--space-3);
+  --gap-lg: var(--space-4);
+  --gap-xl: var(--space-5);
+  --inset-control-sm: 0.3125rem var(--space-2);
+  --inset-control-md: 0.4375rem var(--space-3);
+  --inset-surface-sm: var(--space-2);
+  --inset-surface-md: var(--space-3);
+  --inset-surface-lg: var(--space-4);
+  --gutter-page: clamp(var(--space-3), 2vw, var(--space-6));
+  --gutter-panel: clamp(var(--space-4), 1.8vw, var(--space-5));
+  --control-height-sm: 2rem;
+  --control-height-md: 2.25rem;
+  --control-height-lg: 2.5rem;
+  --radius-control: 6px;
+  --radius-surface: 10px;
+  --radius-pill: 999px;
+  --table-cell-inset: 0.375rem var(--space-2);
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  /* sRGB fallbacks for older WebView engines without OKLCH/color-mix support. */
+  --neutral-0: #ffffff;
+  --neutral-25: #fcfcfd;
+  --neutral-50: #fafafd;
+  --neutral-100: #f4f4f6;
+  --neutral-150: #ececf0;
+  --neutral-200: #dedee5;
+  --neutral-300: #c8c8d2;
+  --neutral-400: #9f9faa;
+  --neutral-500: #747481;
+  --neutral-600: #686876;
+  --neutral-700: #50505f;
+  --neutral-800: #383846;
+  --neutral-900: #282835;
+  --neutral-950: #1a1a25;
+
+  --accent: #5b42d6;
+  --seed-success: #2f9b63;
+  --seed-warning: #b88316;
+  --seed-danger: #d34732;
+  --seed-info: #2f73d6;
+
+  --shadow-raised: 0 1px 2px rgba(26, 26, 37, 0.08);
+  --shadow-surface: 0 1px 2px rgba(26, 26, 37, 0.06), 0 10px 24px rgba(26, 26, 37, 0.07);
+
+  /* === Semantic tokens === */
+  --color-bg: var(--neutral-100);
+  --color-bg-gradient: linear-gradient(180deg, var(--neutral-50) 0%, var(--neutral-100) 100%);
+  --color-surface: var(--neutral-0);
+  --color-surface-raised: var(--neutral-0);
+  --color-surface-subtle: var(--neutral-50);
+  --color-surface-muted: var(--neutral-150);
+  --color-border: var(--neutral-200);
+  --color-border-strong: var(--neutral-300);
+  --color-text: var(--neutral-900);
+  --color-heading: var(--neutral-950);
+  --color-text-muted: var(--neutral-500);
+  --color-text-soft: var(--neutral-700);
+  --color-label: var(--neutral-600);
+  --color-accent: var(--accent);
+  --color-accent-strong: #4e37b9;
+  --color-accent-soft: #efecfb;
+  --color-on-accent: var(--neutral-0);
+  --color-control-bg: var(--neutral-0);
+  --color-control-text: var(--neutral-900);
+  --color-button-bg: #efecfb;
+  --color-button-hover: #e3ddf8;
+  --color-button-text: #402e96;
+  --color-button-active-bg: var(--neutral-900);
+  --color-button-active-text: var(--neutral-0);
+  --color-code-bg: var(--neutral-100);
+  --color-code-text: var(--neutral-800);
+  --color-editor-bg: var(--neutral-25);
+  --color-editor-text: var(--neutral-900);
+  --color-editor-border: var(--neutral-300);
+  --color-table-header-bg: var(--neutral-50);
+  --color-table-border: var(--neutral-150);
+  --color-success-bg: #e6f4ed;
+  --color-success-border: #98d0b3;
+  --color-success-text: #206b44;
+  --color-warning-bg: #f8efd9;
+  --color-warning-border: #ddc18a;
+  --color-warning-text: #64470c;
+  --color-danger-bg: #faeae7;
+  --color-danger-border: #e7a398;
+  --color-danger-text: #943224;
+  /* error family consolidated onto danger */
+  --color-error-bg: var(--color-danger-bg);
+  --color-error-border: var(--color-danger-border);
+  --color-error-text: var(--color-danger-text);
+  --color-info-bg: #e8f0fb;
+  --color-info-border: #a1bee9;
+  --color-info-text: #215095;
+  --color-loading-bg: var(--color-info-bg);
+  --color-loading-text: var(--color-info-text);
+  --shadow-panel: var(--shadow-surface);
+  --shadow-focus: 0 0 0 3px rgba(91, 66, 214, 0.2);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --neutral-0: #2d2d35;
+  --neutral-25: #2a2a32;
+  --neutral-50: #26262e;
+  --neutral-100: #222229;
+  --neutral-150: #353540;
+  --neutral-200: #42424e;
+  --neutral-300: #575765;
+  --neutral-400: #717180;
+  --neutral-500: #9494a0;
+  --neutral-600: #aaaab4;
+  --neutral-700: #c0c0c9;
+  --neutral-800: #d1d1d8;
+  --neutral-900: #e2e2e8;
+  --neutral-950: #f2f2f5;
+
+  --accent: #9a85e8;
+  --seed-success: #62c78f;
+  --seed-warning: #d9b24b;
+  --seed-danger: #ed7868;
+  --seed-info: #75a7ea;
+
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-surface: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 24px rgba(0, 0, 0, 0.28);
+
+  --color-bg: var(--neutral-100);
+  --color-bg-gradient: linear-gradient(180deg, var(--neutral-0) 0%, var(--neutral-100) 100%);
+  --color-surface: var(--neutral-0);
+  --color-surface-raised: var(--neutral-150);
+  --color-surface-subtle: var(--neutral-50);
+  --color-surface-muted: var(--neutral-200);
+  --color-border: var(--neutral-200);
+  --color-border-strong: var(--neutral-300);
+  --color-text: var(--neutral-900);
+  --color-heading: var(--neutral-950);
+  --color-text-muted: var(--neutral-500);
+  --color-text-soft: var(--neutral-700);
+  --color-label: var(--neutral-600);
+  --color-accent: var(--accent);
+  --color-accent-strong: #aa98ec;
+  --color-accent-soft: #393247;
+  --color-on-accent: var(--neutral-100);
+  --color-control-bg: var(--neutral-50);
+  --color-control-text: var(--neutral-900);
+  --color-button-bg: #393247;
+  --color-button-hover: #453b59;
+  --color-button-text: #b5a7ee;
+  --color-button-active-bg: var(--neutral-900);
+  --color-button-active-text: var(--neutral-100);
+  --color-code-bg: var(--neutral-150);
+  --color-code-text: var(--neutral-800);
+  --color-editor-bg: var(--neutral-100);
+  --color-editor-text: var(--neutral-800);
+  --color-editor-border: var(--neutral-300);
+  --color-table-header-bg: var(--neutral-150);
+  --color-table-border: var(--neutral-200);
+  --color-success-bg: #2f4038;
+  --color-success-border: #4f8a67;
+  --color-success-text: #8bd7ad;
+  --color-warning-bg: #3f3929;
+  --color-warning-border: #8b7337;
+  --color-warning-text: #e2c873;
+  --color-danger-bg: #45302f;
+  --color-danger-border: #95544d;
+  --color-danger-text: #f09b90;
+  --color-error-bg: var(--color-danger-bg);
+  --color-error-border: var(--color-danger-border);
+  --color-error-text: var(--color-danger-text);
+  --color-info-bg: #303947;
+  --color-info-border: #55769f;
+  --color-info-text: #9fc3f3;
+  --color-loading-bg: var(--color-info-bg);
+  --color-loading-text: var(--color-info-text);
+  --shadow-panel: var(--shadow-surface);
+  --shadow-focus: 0 0 0 3px rgba(154, 133, 232, 0.24);
+}
+
+@supports (color: oklch(1 0 0)) and (color: color-mix(in oklab, white, black)) {
+  :root {
+    /* === Primitive palette (OKLCH) ===
+       Neutrals are anchored on lightness with a faint cool-violet hue so the UI
+       reads intentional rather than sterile. State colors are seeds; the
+       semantic layer derives bg/border/text from them via color-mix(). */
+    --neutral-0: oklch(1 0 0);
+    --neutral-25: oklch(0.99 0.003 270);
+    --neutral-50: oklch(0.984 0.004 270);
+    --neutral-100: oklch(0.967 0.005 270);
+    --neutral-150: oklch(0.945 0.006 270);
+    --neutral-200: oklch(0.91 0.008 270);
+    --neutral-300: oklch(0.85 0.01 270);
+    --neutral-400: oklch(0.72 0.014 270);
+    --neutral-500: oklch(0.55 0.016 270);
+    --neutral-600: oklch(0.5 0.018 270);
+    --neutral-700: oklch(0.41 0.02 270);
+    --neutral-800: oklch(0.31 0.022 270);
+    --neutral-900: oklch(0.24 0.024 270);
+    --neutral-950: oklch(0.17 0.024 270);
+
+    --accent: oklch(0.55 0.19 277);
+    --seed-success: oklch(0.62 0.13 150);
+    --seed-warning: oklch(0.72 0.14 75);
+    --seed-danger: oklch(0.58 0.19 25);
+    --seed-info: oklch(0.58 0.15 255);
+
+    --shadow-raised: 0 1px 2px color-mix(in oklab, var(--neutral-950), transparent 92%);
+    --shadow-surface: 0 1px 2px color-mix(in oklab, var(--neutral-950), transparent 94%),
+      0 10px 24px color-mix(in oklab, var(--neutral-950), transparent 93%);
+
+    /* === Semantic tokens === */
+    --color-bg: var(--neutral-100);
+    --color-bg-gradient: linear-gradient(180deg, var(--neutral-50) 0%, var(--neutral-100) 100%);
+    --color-surface: var(--neutral-0);
+    --color-surface-raised: var(--neutral-0);
+    --color-surface-subtle: var(--neutral-50);
+    --color-surface-muted: var(--neutral-150);
+    --color-border: var(--neutral-200);
+    --color-border-strong: var(--neutral-300);
+    --color-text: var(--neutral-900);
+    --color-heading: var(--neutral-950);
+    --color-text-muted: var(--neutral-500);
+    --color-text-soft: var(--neutral-700);
+    --color-label: var(--neutral-600);
+    --color-accent: var(--accent);
+    --color-accent-strong: color-mix(in oklab, var(--accent), black 14%);
+    --color-accent-soft: color-mix(in oklab, var(--accent), var(--neutral-0) 90%);
+    --color-on-accent: var(--neutral-0);
+    --color-control-bg: var(--neutral-0);
+    --color-control-text: var(--neutral-900);
+    --color-button-bg: color-mix(in oklab, var(--accent), var(--neutral-0) 90%);
+    --color-button-hover: color-mix(in oklab, var(--accent), var(--neutral-0) 82%);
+    --color-button-text: color-mix(in oklab, var(--accent), black 30%);
+    --color-button-active-bg: var(--neutral-900);
+    --color-button-active-text: var(--neutral-0);
+    --color-code-bg: var(--neutral-100);
+    --color-code-text: var(--neutral-800);
+    --color-editor-bg: var(--neutral-25);
+    --color-editor-text: var(--neutral-900);
+    --color-editor-border: var(--neutral-300);
+    --color-table-header-bg: var(--neutral-50);
+    --color-table-border: var(--neutral-150);
+    --color-success-bg: color-mix(in oklab, var(--seed-success), var(--neutral-0) 86%);
+    --color-success-border: color-mix(in oklab, var(--seed-success), var(--neutral-0) 60%);
+    --color-success-text: color-mix(in oklab, var(--seed-success), black 32%);
+    --color-warning-bg: color-mix(in oklab, var(--seed-warning), var(--neutral-0) 84%);
+    --color-warning-border: color-mix(in oklab, var(--seed-warning), var(--neutral-0) 52%);
+    --color-warning-text: color-mix(in oklab, var(--seed-warning), black 45%);
+    --color-danger-bg: color-mix(in oklab, var(--seed-danger), var(--neutral-0) 88%);
+    --color-danger-border: color-mix(in oklab, var(--seed-danger), var(--neutral-0) 62%);
+    --color-danger-text: color-mix(in oklab, var(--seed-danger), black 28%);
+    /* error family consolidated onto danger */
+    --color-error-bg: var(--color-danger-bg);
+    --color-error-border: var(--color-danger-border);
+    --color-error-text: var(--color-danger-text);
+    --color-info-bg: color-mix(in oklab, var(--seed-info), var(--neutral-0) 88%);
+    --color-info-border: color-mix(in oklab, var(--seed-info), var(--neutral-0) 60%);
+    --color-info-text: color-mix(in oklab, var(--seed-info), black 30%);
+    --color-loading-bg: var(--color-info-bg);
+    --color-loading-text: var(--color-info-text);
+    --shadow-panel: var(--shadow-surface);
+    --shadow-focus: 0 0 0 3px color-mix(in oklab, var(--color-accent), transparent 80%);
+  }
+
+  :root[data-theme='dark'] {
+    /* Dark neutral ramp: neutral-0 is the base surface, higher steps trend
+       lighter so the shared semantic mapping inverts cleanly. */
+    --neutral-0: oklch(0.21 0.014 270);
+    --neutral-25: oklch(0.205 0.013 270);
+    --neutral-50: oklch(0.195 0.012 270);
+    --neutral-100: oklch(0.18 0.012 270);
+    --neutral-150: oklch(0.25 0.016 270);
+    --neutral-200: oklch(0.3 0.018 270);
+    --neutral-300: oklch(0.4 0.022 270);
+    --neutral-400: oklch(0.52 0.022 270);
+    --neutral-500: oklch(0.66 0.02 270);
+    --neutral-600: oklch(0.74 0.018 270);
+    --neutral-700: oklch(0.82 0.016 270);
+    --neutral-800: oklch(0.88 0.014 270);
+    --neutral-900: oklch(0.93 0.012 270);
+    --neutral-950: oklch(0.97 0.008 270);
+
+    --accent: oklch(0.72 0.15 277);
+    --seed-success: oklch(0.72 0.13 150);
+    --seed-warning: oklch(0.78 0.13 75);
+    --seed-danger: oklch(0.68 0.18 25);
+    --seed-info: oklch(0.7 0.13 255);
+
+    --shadow-raised: 0 1px 2px rgb(0 0 0 / 35%);
+    --shadow-surface: 0 1px 2px rgb(0 0 0 / 30%), 0 10px 24px rgb(0 0 0 / 28%);
+
+    --color-bg: var(--neutral-100);
+    --color-bg-gradient: linear-gradient(180deg, var(--neutral-0) 0%, var(--neutral-100) 100%);
+    --color-surface: var(--neutral-0);
+    --color-surface-raised: var(--neutral-150);
+    --color-surface-subtle: var(--neutral-50);
+    --color-surface-muted: var(--neutral-200);
+    --color-border: var(--neutral-200);
+    --color-border-strong: var(--neutral-300);
+    --color-text: var(--neutral-900);
+    --color-heading: var(--neutral-950);
+    --color-text-muted: var(--neutral-500);
+    --color-text-soft: var(--neutral-700);
+    --color-label: var(--neutral-600);
+    --color-accent: var(--accent);
+    --color-accent-strong: color-mix(in oklab, var(--accent), white 18%);
+    --color-accent-soft: color-mix(in oklab, var(--accent), var(--neutral-100) 82%);
+    --color-on-accent: var(--neutral-100);
+    --color-control-bg: var(--neutral-50);
+    --color-control-text: var(--neutral-900);
+    --color-button-bg: color-mix(in oklab, var(--accent), var(--neutral-0) 80%);
+    --color-button-hover: color-mix(in oklab, var(--accent), var(--neutral-0) 70%);
+    --color-button-text: color-mix(in oklab, var(--accent), white 28%);
+    --color-button-active-bg: var(--neutral-900);
+    --color-button-active-text: var(--neutral-100);
+    --color-code-bg: var(--neutral-150);
+    --color-code-text: var(--neutral-800);
+    --color-editor-bg: var(--neutral-100);
+    --color-editor-text: var(--neutral-800);
+    --color-editor-border: var(--neutral-300);
+    --color-table-header-bg: var(--neutral-150);
+    --color-table-border: var(--neutral-200);
+    --color-success-bg: color-mix(in oklab, var(--seed-success), var(--neutral-100) 84%);
+    --color-success-border: color-mix(in oklab, var(--seed-success), var(--neutral-100) 55%);
+    --color-success-text: color-mix(in oklab, var(--seed-success), white 25%);
+    --color-warning-bg: color-mix(in oklab, var(--seed-warning), var(--neutral-100) 84%);
+    --color-warning-border: color-mix(in oklab, var(--seed-warning), var(--neutral-100) 55%);
+    --color-warning-text: color-mix(in oklab, var(--seed-warning), white 25%);
+    --color-danger-bg: color-mix(in oklab, var(--seed-danger), var(--neutral-100) 84%);
+    --color-danger-border: color-mix(in oklab, var(--seed-danger), var(--neutral-100) 55%);
+    --color-danger-text: color-mix(in oklab, var(--seed-danger), white 25%);
+    --color-error-bg: var(--color-danger-bg);
+    --color-error-border: var(--color-danger-border);
+    --color-error-text: var(--color-danger-text);
+    --color-info-bg: color-mix(in oklab, var(--seed-info), var(--neutral-100) 84%);
+    --color-info-border: color-mix(in oklab, var(--seed-info), var(--neutral-100) 55%);
+    --color-info-text: color-mix(in oklab, var(--seed-info), white 25%);
+    --color-loading-bg: var(--color-info-bg);
+    --color-loading-text: var(--color-info-text);
+    --shadow-panel: var(--shadow-surface);
+    --shadow-focus: 0 0 0 3px color-mix(in oklab, var(--color-accent), transparent 76%);
+  }
+}
+
+
+* {
+  box-sizing: border-box;
+}

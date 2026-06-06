@@ -1,8 +1,9 @@
 {
   "name": "json-analyzer",
   "private": true,
-  "version": "0.1.6",
+  "version": "0.1.7",
   "scripts": {
+    "baseline": "node scripts/collect_baseline.mjs",
     "check": "pnpm run check:rust && pnpm run check:frontend && pnpm run check:tauri",
     "check:rust": "cargo fmt --check && cargo clippy -- -D warnings && cargo test",
     "check:frontend": "pnpm -C frontend run lint && pnpm -C frontend run typecheck && pnpm -C frontend run test && pnpm -C frontend run build",
@@ -10,7 +11,8 @@
     "frontend:install": "pnpm install",
     "tauri:dev": "pnpm exec tauri dev",
     "tauri:build:no-bundle": "pnpm exec tauri build --no-bundle",
-    "tauri:package:local": "pnpm exec tauri build --config '{\"bundle\":{\"active\":true}}' --no-sign"
+    "tauri:package:local": "pnpm exec tauri build --config '{\"bundle\":{\"active\":true}}' --no-sign",
+    "release:verify": "pnpm baseline && pnpm check && pnpm run tauri:build:no-bundle"
   },
   "packageManager": "pnpm@11.5.1",
   "devDependencies": {

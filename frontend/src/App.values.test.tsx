@@ -222,6 +222,57 @@ describe('Values Explorer target workflow', () => {
     })
   })
 
+  it('renders only the requested page when Values Explorer receives a large grouped result set', async () => {
+    analyzeValuesExplorerMock.mockImplementation((request) => {
+      const groupOffset = ((request.groups_page ?? request.page) - 1) * request.page_size
+      const duplicateOffset = (request.page - 1) * request.page_size
+      const makeGroup = (index: number) => ({
+        value: `Department ${index}`,
+        display_value: `Department ${index}`,
+        count: index % 2 === 0 ? 4 : 1,
+        is_duplicate: index % 2 === 0,
+        items: [
+          {
+            index,
+            item: { id: index, department: `Department ${index}` },
+            source_path: String(index),
+            field_value: `Department ${index}`,
+          },
+        ],
+      })
+
+      return Promise.resolve({
+        field_path: request.selected_fields.join(' + '),
+        field_paths: request.selected_fields,
+        is_composite: request.selected_fields.length > 1,
+        total_items: 2_500,
+        unique_values: 100,
+        duplicate_group_count: 50,
+        has_duplicates: true,
+        duplicates: Array.from({ length: request.page_size }, (_, index) => makeGroup(duplicateOffset + index)),
+        all_field_values: Array.from({ length: request.page_size }, (_, index) => makeGroup(groupOffset + index)),
+        page: request.page,
+        page_size: request.page_size,
+        total_pages: 2,
+        has_next_page: request.page < 2,
+        groups_page: request.groups_page ?? request.page,
+        groups_total_pages: 4,
+        sort_mode: request.sort_mode,
+        filter: request.filter,
+      })
+    })
+
+    const valuesView = await openValuesTab()
+    await expandValuesExplorer(valuesView)
+    await selectDepartment(valuesView)
+
+    const resultsSection = await within(valuesView).findByLabelText(/^results \(page 1 of 4\)/i)
+    expect(within(resultsSection).getAllByRole('button', { name: /^expand group$/i })).toHaveLength(25)
+    expect(resultsSection).toHaveTextContent('Department 0')
+    expect(resultsSection).toHaveTextContent('Department 24')
+    expect(resultsSection).not.toHaveTextContent('Department 25')
+  })
+
   it('expands rows and copies group item JSON', async () => {
     const valuesView = await openValuesTab()
     await expandValuesExplorer(valuesView)
