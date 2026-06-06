@@ -219,7 +219,11 @@ jobs:
 
           for deb in "${deb_packages[@]}"; do
             echo "Verifying ${deb}"
-            dpkg-sig --verify-role builder "${deb}"
+            python3 scripts/verify_deb_signature.py \
+              --public-key "${public_key_file}" \
+              --fingerprint "${expected_fingerprint}" \
+              --role builder \
+              "${deb}"
           done
 
       - name: Validate Debian package metadata
