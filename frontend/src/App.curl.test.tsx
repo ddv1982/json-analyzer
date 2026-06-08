@@ -10,6 +10,7 @@ import {
   executeCurlMock,
   getConfigMock,
   getCurlJobResultsMock,
+  guardrailOk,
   loadFixtureAnalysis,
   renderApp,
   setupDefaultAppMocks,
@@ -54,7 +55,7 @@ describe('App frontend MVP workflow', () => {
     expect(startCurlJobMock).not.toHaveBeenCalled()
     expect(response).toHaveTextContent('200 OK')
     expect(response).toHaveTextContent('GET https://api.example.com/items/1')
-    expect(response).toHaveTextContent('Complete within limit')
+    expect(response).toHaveTextContent('Complete')
     expect(response).toHaveTextContent('Set-Cookie')
     expect(response).toHaveTextContent('Redacted')
     fireEvent.click(within(response).getByRole('button', { name: /copy response/i }))
@@ -66,6 +67,49 @@ describe('App frontend MVP workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: /^clear$/i }))
     expect(screen.getByRole('textbox', { name: /curl command input/i })).toHaveValue('')
     expect(screen.queryByLabelText(/curl execution response/i)).not.toBeInTheDocument()
+  })
+
+  it('renders non-2xx Curl Executor responses with copyable body and diagnostics', async () => {
+    executeCurlMock.mockResolvedValueOnce({
+      request_preview: {
+        ...curlPreviewOk.parsed,
+        url: 'https://api.example.com/forbidden',
+      },
+      guardrail: guardrailOk.decision,
+      response: {
+        status: 403,
+        status_text: 'Forbidden',
+        headers: [
+          { name: 'Content-Type', value: 'application/json', redacted: false },
+        ],
+        body: '{"error":"forbidden","message":"Missing permission"}',
+        body_truncated: false,
+        elapsed_ms: 42,
+        response_bytes: 52,
+      },
+    })
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: { value: "curl 'https://api.example.com/forbidden'" },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^execute$/i }))
+
+    const response = await screen.findByLabelText(/curl execution response/i)
+    expect(response).toHaveTextContent('HTTP error response')
+    expect(response).toHaveTextContent('403 Forbidden')
+    expect(response).toHaveTextContent('"message": "Missing permission"')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    fireEvent.click(within(response).getByRole('button', { name: /copy response/i }))
+    await waitFor(() => {
+      expect(writeClipboardTextMock).toHaveBeenCalledWith('{"error":"forbidden","message":"Missing permission"}')
+    })
+    fireEvent.click(within(response).getByRole('button', { name: /copy details/i }))
+    await waitFor(() => {
+      expect(writeClipboardTextMock).toHaveBeenLastCalledWith(expect.stringContaining('"status": 403'))
+    })
   })
 
   it('disables Curl Executor actions when global curl execution is disabled by configuration', async () => {
@@ -279,6 +323,393 @@ describe('App frontend MVP workflow', () => {
     })
   })
 
+  it('inserts a batch placeholder for a selected URL path segment', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/v1/accounts/abc-123/items'",
+      },
+    })
+
+    const selector = screen.getByRole('combobox', { name: /batch variable/i })
+    fireEvent.change(selector, { target: { value: 'path:2:abc-123' } })
+    expect(curlEditor).toHaveValue("curl 'https://api.example.com/v1/accounts/{value}/items'")
+
+    fireEvent.change(screen.getByRole('textbox', { name: /batch values/i }), {
+      target: { value: 'one\ntwo' },
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /execute batch/i })).toBeEnabled()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /execute batch/i }))
+
+    expect(startCurlJobMock).toHaveBeenLastCalledWith({
+      curl: "curl 'https://api.example.com/v1/accounts/{value}/items'",
+      placeholder: '{value}',
+      values: ['one', 'two'],
+      timeout_ms: 30_000,
+      max_concurrency: 5,
+      follow_redirects: true,
+      confirm_large_batch: false,
+    })
+  })
+
+  it('detects path targets from the request URL instead of URL-valued headers', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl -H 'Referer: https://app.example.com/items/ignored' 'https://api.example.com/users/actual'",
+      },
+    })
+
+    const selector = screen.getByRole('combobox', { name: /batch variable/i })
+    expect(selector).toHaveTextContent('Path after /users - Replace actual')
+    expect(selector).not.toHaveTextContent('ignored')
+    fireEvent.change(selector, { target: { value: 'path:1:actual' } })
+
+    expect(curlEditor).toHaveValue(
+      "curl -H 'Referer: https://app.example.com/items/ignored' 'https://api.example.com/users/{value}'",
+    )
+  })
+
+  it('preserves quoted inline --url values when inserting path placeholders', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl --url='https://api.example.com/items/123'",
+      },
+    })
+
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'path:1:123' },
+    })
+
+    expect(curlEditor).toHaveValue("curl --url='https://api.example.com/items/{value}'")
+  })
+
+  it('inserts path placeholders into unquoted inline --url values', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: 'curl --url=https://api.example.com/items/123',
+      },
+    })
+
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'path:1:123' },
+    })
+
+    expect(curlEditor).toHaveValue('curl --url=https://api.example.com/items/{value}')
+  })
+
+  it('detects URL targets in multiline curl commands with explicit --url', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl --location \\\n  --url 'https://api.example.com/items/123'",
+      },
+    })
+
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'path:1:123' },
+    })
+
+    expect(curlEditor).toHaveValue("curl --location \\\n  --url 'https://api.example.com/items/{value}'")
+  })
+
+  it('detects positional URL targets in multiline curl commands with headers', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl --location \\\n  -H 'Accept: application/json' \\\n  'https://api.example.com/items/123'",
+      },
+    })
+
+    const selector = screen.getByRole('combobox', { name: /batch variable/i })
+    expect(selector).toHaveTextContent('Path after /items - Replace 123')
+    fireEvent.change(selector, { target: { value: 'path:1:123' } })
+
+    expect(curlEditor).toHaveValue(
+      "curl --location \\\n  -H 'Accept: application/json' \\\n  'https://api.example.com/items/{value}'",
+    )
+  })
+
+  it('detects URL targets in CRLF multiline curl commands', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl --location \\\r\n  --url 'https://api.example.com/items/123'",
+      },
+    })
+
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'path:1:123' },
+    })
+
+    expect(curlEditor).toHaveValue("curl --location \\\n  --url 'https://api.example.com/items/{value}'")
+  })
+
+  it('does not offer URL-derived batch targets when unsupported URL options make the request URL ambiguous', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: {
+        value: 'curl --proxy http://proxy.example:8080 https://api.example.com/items/123',
+      },
+    })
+
+    expect(screen.getByText(/insert placeholder/i)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /batch variable/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /execute batch/i })).toBeDisabled()
+  })
+
+  it('does not offer URL-derived batch targets for unterminated quoted URLs', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: {
+        value: "curl 'https://api.example.com/items/123",
+      },
+    })
+
+    expect(screen.getByText(/insert placeholder/i)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /batch variable/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /execute batch/i })).toBeDisabled()
+  })
+
+  it('does not offer URL-derived batch targets for unterminated inline --url values', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: {
+        value: "curl --url='https://api.example.com/items/123",
+      },
+    })
+
+    expect(screen.getByText(/insert placeholder/i)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /batch variable/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /execute batch/i })).toBeDisabled()
+  })
+
+  it('does not offer URL-derived batch targets when explicit --url is followed by another URL', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: {
+        value: 'curl --url https://api.example.com/items/123 https://api.example.com/other',
+      },
+    })
+
+    expect(screen.getByText(/insert placeholder/i)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /batch variable/i })).not.toBeInTheDocument()
+  })
+
+  it('does not offer URL-derived batch targets when explicit --url is followed by an unsupported option', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: {
+        value: 'curl --url https://api.example.com/items/123 --proxy http://proxy.example:8080',
+      },
+    })
+
+    expect(screen.getByText(/insert placeholder/i)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /batch variable/i })).not.toBeInTheDocument()
+  })
+
+  it('does not offer URL-derived batch targets after end-of-options with multiple URLs', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: {
+        value: 'curl -- https://api.example.com/items/123 https://api.example.com/other',
+      },
+    })
+
+    expect(screen.getByText(/insert placeholder/i)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /batch variable/i })).not.toBeInTheDocument()
+  })
+
+  it('does not offer URL-derived batch targets for unsupported file upload curl options', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: {
+        value: 'curl -F file=@fixture.json https://api.example.com/upload',
+      },
+    })
+
+    expect(screen.getByText(/insert placeholder/i)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /batch variable/i })).not.toBeInTheDocument()
+  })
+
+  it('inserts a batch placeholder for a selected query parameter', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/search?email=alice@example.com&active=true'",
+      },
+    })
+
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'query:0' },
+    })
+    expect(curlEditor).toHaveValue("curl 'https://api.example.com/search?email={email}&active=true'")
+
+    fireEvent.change(screen.getByRole('textbox', { name: /batch values/i }), {
+      target: { value: 'a@example.com\nb@example.com' },
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /execute batch/i })).toBeEnabled()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /execute batch/i }))
+
+    expect(startCurlJobMock).toHaveBeenLastCalledWith({
+      curl: "curl 'https://api.example.com/search?email={email}&active=true'",
+      placeholder: '{email}',
+      values: ['a@example.com', 'b@example.com'],
+      timeout_ms: 30_000,
+      max_concurrency: 5,
+      follow_redirects: true,
+      confirm_large_batch: false,
+    })
+  })
+
+  it('inserts a batch placeholder for the selected duplicate query parameter occurrence', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/search?tag=alpha&tag=beta&sort=asc'",
+      },
+    })
+
+    const selector = screen.getByRole('combobox', { name: /batch variable/i })
+    expect(selector).toHaveTextContent('Query tag #1 - Replace tag=alpha')
+    expect(selector).toHaveTextContent('Query tag #2 - Replace tag=beta')
+    fireEvent.change(selector, { target: { value: 'query:1' } })
+
+    expect(curlEditor).toHaveValue("curl 'https://api.example.com/search?tag=alpha&tag={tag}&sort=asc'")
+  })
+
+  it('preserves raw encoded query names and fragments when inserting query placeholders', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/search?filter%5Bstatus%5D=open&q=a%2Bb+c#results'",
+      },
+    })
+
+    const selector = screen.getByRole('combobox', { name: /batch variable/i })
+    expect(selector).toHaveTextContent('Query filter[status] - Replace filter[status]=open')
+    fireEvent.change(selector, { target: { value: 'query:0' } })
+
+    expect(curlEditor).toHaveValue(
+      "curl 'https://api.example.com/search?filter%5Bstatus%5D={filter_status}&q=a%2Bb+c#results'",
+    )
+  })
+
+  it('handles empty and valueless query parameters without rewriting unrelated raw URL text', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/search?empty=&flag&next=two'",
+      },
+    })
+
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'query:0' },
+    })
+    expect(curlEditor).toHaveValue("curl 'https://api.example.com/search?empty={empty}&flag&next=two'")
+
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/search?empty=&flag&next=two'",
+      },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'query:1' },
+    })
+
+    expect(curlEditor).toHaveValue("curl 'https://api.example.com/search?empty=&flag={flag}&next=two'")
+  })
+
+  it('does not detect query targets from a URL fragment', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/items/123#section?debug=true'",
+      },
+    })
+
+    const selector = screen.getByRole('combobox', { name: /batch variable/i })
+    expect(selector).not.toHaveTextContent('Query debug')
+    fireEvent.change(selector, { target: { value: 'path:1:123' } })
+
+    expect(curlEditor).toHaveValue("curl 'https://api.example.com/items/{value}#section?debug=true'")
+  })
+
   it('keeps comma-containing batch values intact', async () => {
     renderApp()
 
@@ -381,7 +812,7 @@ describe('App frontend MVP workflow', () => {
       target: { value: "curl 'https://api.example.com/items/1'" },
     })
 
-    expect(screen.getByText(/insert placeholder/i)).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /batch variable/i })).toHaveTextContent('Path after /items')
     expect(screen.getByRole('button', { name: /execute batch/i })).toBeDisabled()
   })
 

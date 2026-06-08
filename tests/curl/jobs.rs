@@ -113,6 +113,44 @@ fn curl_job_manager_executes_batch_and_aggregates_results_with_mocked_client() {
 }
 
 #[test]
+fn curl_job_manager_counts_http_error_responses_as_failed_with_payload() {
+    let manager = CurlJobManager::new();
+    let client = Arc::new(SequenceCurlClient::new(vec![
+        Ok(mock_response(403, br#"{"message":"forbidden"}"#)),
+        Ok(mock_response(200, b"ok")),
+    ]));
+    let started = manager
+        .start_job_with_client(
+            CurlStartJobRequest {
+                curl: "curl http://93.184.216.34/items/{item}".to_string(),
+                placeholder: Some("{item}".to_string()),
+                values: vec!["blocked".to_string(), "allowed".to_string()],
+                max_concurrency: Some(1),
+                timeout_ms: Some(50),
+                follow_redirects: false,
+                confirm_large_batch: false,
+            },
+            CurlLimitsConfig::default(),
+            client,
+        )
+        .unwrap();
+
+    let results = wait_for_job_results(&manager, &started.job.job_id);
+    assert_eq!(results.job.status, CurlJobStatus::Failed);
+    assert_eq!(results.job.completed_requests, 1);
+    assert_eq!(results.job.failed_requests, 1);
+    assert_eq!(results.results[0].status, CurlJobStatus::Failed);
+    assert_eq!(results.results[0].input_value.as_deref(), Some("blocked"));
+    assert_eq!(results.results[0].response.as_ref().unwrap().status, 403);
+    assert_eq!(
+        results.results[0].response.as_ref().unwrap().body,
+        r#"{"message":"forbidden"}"#
+    );
+    assert!(results.results[0].error.is_none());
+    assert_eq!(results.results[1].status, CurlJobStatus::Succeeded);
+}
+
+#[test]
 fn curl_job_manager_expands_generic_batch_and_tracks_input_values() {
     let manager = CurlJobManager::new();
     let client = Arc::new(SequenceCurlClient::new(vec![

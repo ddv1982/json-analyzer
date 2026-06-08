@@ -20,11 +20,13 @@ import { CurlErrorPanel, CurlJobPanel, CurlResponsePanel } from './CurlExecutorP
 import type { BusyAction, CurlMode } from './types'
 import {
   buildBatchCurls,
+  detectBatchTargetOptions,
   detectCurlPlaceholders,
   disabledCurlGate,
   disabledCurlProblem,
   errorSignature,
   formatCurlFeatureStatus,
+  insertBatchTargetPlaceholder,
   isTerminalJobStatus,
   parseBatchLines,
   unsupportedFeatureProblem,
@@ -49,6 +51,7 @@ export function CurlExecutorView() {
   const [jobMode, setJobMode] = useState<CurlMode | null>(null)
   const pollErrorSignatureRef = useRef<string | null>(null)
   const detectedPlaceholders = useMemo(() => detectCurlPlaceholders(curlInput), [curlInput])
+  const batchTargetOptions = useMemo(() => detectBatchTargetOptions(curlInput), [curlInput])
   const batchValues = useMemo(() => parseBatchLines(batchInput), [batchInput])
   const generatedBatchCurls = useMemo(
     () => buildBatchCurls(curlInput, batchPlaceholder, batchValues),
@@ -360,6 +363,22 @@ export function CurlExecutorView() {
     setBatchPreviewError(null)
   }
 
+  function handleBatchTargetChange(targetId: string) {
+    const selectedTarget = batchTargetOptions.find((target) => target.id === targetId)
+    if (!selectedTarget) {
+      return
+    }
+
+    const next = insertBatchTargetPlaceholder(curlInput, selectedTarget)
+    setCurlInput(next.curl)
+    setBatchPlaceholder(next.placeholder)
+    setBatchPreview(null)
+    setBatchPreviewError(null)
+    setJobResults(null)
+    setError(null)
+    setLargeBatchConfirmationPending(false)
+  }
+
   return (
     <section className="curl-executor" aria-label="Curl Executor task flow">
       <section className="panel curl-instructions-panel" aria-labelledby="curl-how-to-use-title">
@@ -467,33 +486,34 @@ export function CurlExecutorView() {
 
         {mode === 'batch' ? (
           <>
-            {detectedPlaceholders.length > 0 ? (
+            {batchTargetOptions.length > 0 ? (
               <>
                 <label className="control-label" htmlFor="curl-batch-placeholder">
                   Batch variable
                 </label>
                 <select
                   id="curl-batch-placeholder"
-                  value={batchPlaceholder}
-                  onChange={(event) => {
-                    setBatchPlaceholder(event.target.value)
-                    setBatchPreview(null)
-                    setBatchPreviewError(null)
-                    setJobResults(null)
-                    setError(null)
-                    setLargeBatchConfirmationPending(false)
-                  }}
+                  value={detectedPlaceholders.includes(batchPlaceholder) ? `placeholder:${batchPlaceholder}` : ''}
+                  onChange={(event) => handleBatchTargetChange(event.target.value)}
                   disabled={isBusy || isJobActive}
                 >
-                  {detectedPlaceholders.map((placeholder) => (
-                    <option key={placeholder} value={placeholder}>{placeholder}</option>
+                  {detectedPlaceholders.includes(batchPlaceholder) ? null : (
+                    <option value="">Choose a batch target...</option>
+                  )}
+                  {batchTargetOptions.map((target) => (
+                    <option key={target.id} value={target.id}>
+                      {target.label} - {target.detail}
+                    </option>
                   ))}
                 </select>
+                <p className="input-help">
+                  Choose an existing placeholder, URL path segment, or query parameter. Path and query choices insert a placeholder into the curl command above.
+                </p>
               </>
             ) : (
               <section className="state-card warning-state" role="status">
                 <strong>Insert placeholder</strong>
-                <span>Add a placeholder such as {DEFAULT_BATCH_PLACEHOLDER} anywhere in the curl command above, then select it before running a batch.</span>
+                <span>Add a placeholder such as {DEFAULT_BATCH_PLACEHOLDER} anywhere in the curl command above, or paste a curl command with a URL so path and query targets can be detected.</span>
               </section>
             )}
             <label className="control-label" htmlFor="curl-batch-input">

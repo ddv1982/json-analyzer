@@ -232,14 +232,7 @@ impl CurlJobManager {
                 &worker.limits,
                 worker.client.as_ref(),
             ) {
-                Ok(response) => CurlJobResult {
-                    index,
-                    status: CurlJobStatus::Succeeded,
-                    input_value,
-                    request_preview: Some(response.request_preview),
-                    response: response.response,
-                    error: None,
-                },
+                Ok(response) => curl_job_result_from_response(index, input_value, response),
                 Err(error) => CurlJobResult {
                     index,
                     status: CurlJobStatus::Failed,
@@ -304,14 +297,7 @@ impl CurlJobManager {
                             limits,
                             client.as_ref(),
                         ) {
-                            Ok(response) => CurlJobResult {
-                                index,
-                                status: CurlJobStatus::Succeeded,
-                                input_value,
-                                request_preview: Some(response.request_preview),
-                                response: response.response,
-                                error: None,
-                            },
+                            Ok(response) => curl_job_result_from_response(index, input_value, response),
                             Err(error) => CurlJobResult {
                                 index,
                                 status: CurlJobStatus::Failed,
@@ -521,6 +507,26 @@ fn estimate_response_bytes(response: Option<&crate::CurlHttpResponse>) -> usize 
         + response.headers.iter().fold(0usize, |total, header| {
             total.saturating_add(header.name.len() + header.value.len())
         })
+}
+
+fn curl_job_result_from_response(
+    index: usize,
+    input_value: Option<String>,
+    response: crate::CurlExecuteResponse,
+) -> CurlJobResult {
+    let http_status = response.response.as_ref().map(|http| http.status).unwrap_or(0);
+    CurlJobResult {
+        index,
+        status: if http_status >= 400 {
+            CurlJobStatus::Failed
+        } else {
+            CurlJobStatus::Succeeded
+        },
+        input_value,
+        request_preview: Some(response.request_preview),
+        response: response.response,
+        error: None,
+    }
 }
 
 fn estimate_error_bytes(error: Option<&SerializableProblem>) -> usize {

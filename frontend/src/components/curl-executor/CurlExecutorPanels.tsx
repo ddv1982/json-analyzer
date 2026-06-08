@@ -8,7 +8,9 @@ import {
   buildMergedJobDataPayload,
   formatJobResult,
   formatJobStatus,
+  isHttpErrorStatus,
   jobStatusBadgeVariant,
+  statusBadgeVariant,
 } from './utils'
 
 interface CurlResponseExchange {
@@ -19,13 +21,19 @@ interface CurlResponseExchange {
 export function CurlResponsePanel({ exchange }: { exchange: CurlResponseExchange }) {
   const { copiedKey, errorKey, errorMessage, copy } = useClipboardCopy(1800)
   const { request_preview: requestPreview, response } = exchange
+  const httpError = isHttpErrorStatus(response.status)
+  const responseDetails = JSON.stringify({ request_preview: requestPreview, response }, null, 2)
+  const bodyPreview = formatResponseBodyPreview(response.body)
 
   return (
-    <section className="result-card" aria-label="Curl execution response">
+    <section className={`result-card curl-response-panel ${httpError ? 'http-error-response' : ''}`} aria-label="Curl execution response">
       <div className="result-card-heading">
-        <h3>Response</h3>
+        <div>
+          <p className="section-kicker">{httpError ? 'HTTP error response' : 'Response'}</p>
+          <h3>{requestPreview.method} {requestPreview.url}</h3>
+        </div>
         <div className="inline-action-group">
-          <Badge variant="success">
+          <Badge variant={statusBadgeVariant(response.status)}>
             {response.status} {response.status_text ?? ''}
           </Badge>
           <CopyButton
@@ -33,17 +41,34 @@ export function CurlResponsePanel({ exchange }: { exchange: CurlResponseExchange
             label="Copy Response"
             onClick={() => void copy(response.body, 'curl-response')}
           />
+          <CopyButton
+            state={copiedKey === 'curl-response-details' ? 'copied' : errorKey === 'curl-response-details' ? 'error' : 'idle'}
+            label="Copy Details"
+            onClick={() => void copy(responseDetails, 'curl-response-details')}
+          />
         </div>
       </div>
-      <dl className="key-detail-list">
-        <dt>Request</dt>
-        <dd>{requestPreview.method} {requestPreview.url}</dd>
-        <dt>Elapsed</dt>
-        <dd>{response.elapsed_ms} ms</dd>
-        <dt>Response size</dt>
-        <dd>{response.response_bytes.toLocaleString()} bytes</dd>
-        <dt>Body preview</dt>
-        <dd>{response.body_truncated ? 'Truncated to configured limit' : 'Complete within limit'}</dd>
+      <dl className="curl-response-summary">
+        <div>
+          <dt>Method</dt>
+          <dd>{requestPreview.method}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>{response.status} {response.status_text ?? ''}</dd>
+        </div>
+        <div>
+          <dt>Elapsed</dt>
+          <dd>{response.elapsed_ms} ms</dd>
+        </div>
+        <div>
+          <dt>Size</dt>
+          <dd>{response.response_bytes.toLocaleString()} bytes</dd>
+        </div>
+        <div>
+          <dt>Body</dt>
+          <dd>{response.body_truncated ? 'Truncated' : 'Complete'}</dd>
+        </div>
       </dl>
       <h4>Response headers</h4>
       {response.headers.length > 0 ? (
@@ -69,7 +94,7 @@ export function CurlResponsePanel({ exchange }: { exchange: CurlResponseExchange
         <p className="muted">No response headers captured.</p>
       )}
       <h4>Body preview</h4>
-      {response.body.length > 0 ? <pre className="preview-code">{response.body}</pre> : <p className="muted">Response body is empty.</p>}
+      {bodyPreview.length > 0 ? <pre className="preview-code curl-body-preview">{bodyPreview}</pre> : <p className="muted">Response body is empty.</p>}
       {errorMessage ? <p className="input-help warning-text" role="status">{errorMessage}</p> : null}
     </section>
   )
@@ -192,4 +217,15 @@ export function CurlErrorPanel({ error }: { error: ProblemDetails }) {
       {errorMessage ? <p className="input-help warning-text" role="status">{errorMessage}</p> : null}
     </section>
   )
+}
+
+function formatResponseBodyPreview(body: string): string {
+  if (!body.trim()) {
+    return ''
+  }
+  try {
+    return JSON.stringify(JSON.parse(body), null, 2)
+  } catch {
+    return body
+  }
 }
