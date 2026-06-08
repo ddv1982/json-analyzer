@@ -27,7 +27,7 @@ Observed target UX:
 - Batch mode is disabled until a successful single request extracts a bearer token.
 - In batch mode, the primary button reads `Execute Batch`.
 - While batch execution is running, the button reads `Executing Batch...`.
-- The target's batch input is customer IDs, not one full curl command per line.
+- The target's batch input is resource IDs, not one full curl command per line.
 - Result copy actions are on results:
   - Single result: `Copy Response`
   - Batch result: `Copy Merged Data`
@@ -38,7 +38,7 @@ Observed target UX:
 - Parsed request preview is a separate visible result area, including an empty state that tells users to preview before execution.
 - Request-copy actions currently copy parsed URL, headers, and body. The target app's copy affordance is response-focused instead.
 - Background jobs are exposed as a user-facing concept for a single request. The target app hides this implementation detail.
-- Batch mode currently accepts one curl command per line. The target app's batch mode accepts customer IDs after a bearer token has been extracted from a successful single request.
+- Batch mode currently accepts one curl command per line. The target app's batch mode accepts resource IDs after a bearer token has been extracted from a successful single request.
 - Current cancellation is labeled `Cancel job`; the target labels the active interrupt action `Stop`.
 
 ## Product Direction
@@ -58,7 +58,7 @@ Default batch flow should be:
 1. Execute one successful single request first.
 2. Extract bearer token.
 3. Enable `Batch Mode`.
-4. Paste customer IDs.
+4. Paste resource IDs.
 5. Click `Execute Batch`.
 6. If running, optionally click `Stop`.
 7. Use `Copy Merged Data` from batch results.
@@ -76,7 +76,7 @@ Keep the command surface close to the target:
   - `Step 1: Execute successful single request`
   - `Step 2: Bearer token extracted`
   - `Step 3: Batch mode now available`
-- Show `Batch Mode - Execute for multiple customer IDs` as a disabled toggle until a token exists.
+- Show `Batch Mode - Execute for multiple resource IDs` as a disabled toggle until a token exists.
 - Do not show a visible `Preview request` action.
 - Do not show `Start background run`.
 - Show only:
@@ -124,12 +124,12 @@ Level 1, minimal target-action parity:
 Level 2, full target-flow parity:
 
 - Gate batch mode behind successful single execution and bearer-token extraction.
-- Replace one-curl-per-line batch input with `Customer IDs (comma-separated)`.
+- Replace one-curl-per-line batch input with `Resource IDs (comma-separated)`.
 - Add concurrency and timeout controls matching the target:
   - `Concurrent Requests`
   - `Request Timeout`
-- Build batch requests from the single curl command plus customer IDs and bearer token.
-- Show target-style large/very-large batch warnings based on customer ID count.
+- Build batch requests from the single curl command plus resource IDs and bearer token.
+- Show target-style large/very-large batch warnings based on resource ID count.
 - Add `Copy Merged Data` to final batch results.
 
 Recommendation: implement Level 1 first because it removes the confusing buttons immediately. Then implement Level 2 as a follow-up because it changes batch semantics and may require backend/API support beyond styling.
@@ -197,7 +197,7 @@ Recommendation: implement Level 1 first because it removes the confusing buttons
 **Done when:**
 
 - If Level 1 is chosen, current batch input remains but action labels and stop/copy behavior match the target.
-- If Level 2 is chosen, batch mode is gated by successful single execution and uses customer IDs, bearer token extraction, concurrency, and timeout controls.
+- If Level 2 is chosen, batch mode is gated by successful single execution and uses resource IDs, bearer token extraction, concurrency, and timeout controls.
 - The implementation does not mix both models ambiguously.
 
 **Key files:** `frontend/src/components/curl-executor/CurlExecutorView.tsx`, `frontend/src/lib/commands.ts`, Tauri command layer if Level 2 requires new request shaping.

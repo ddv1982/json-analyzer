@@ -26,6 +26,7 @@ import {
   disabledCurlProblem,
   errorSignature,
   formatCurlFeatureStatus,
+  generateBatchExampleValues,
   insertBatchTargetPlaceholder,
   isTerminalJobStatus,
   parseBatchLines,
@@ -50,6 +51,7 @@ export function CurlExecutorView() {
   const [largeBatchConfirmationPending, setLargeBatchConfirmationPending] = useState(false)
   const [jobMode, setJobMode] = useState<CurlMode | null>(null)
   const pollErrorSignatureRef = useRef<string | null>(null)
+  const autoBatchInputRef = useRef(SAMPLE_BATCH_VALUES)
   const detectedPlaceholders = useMemo(() => detectCurlPlaceholders(curlInput), [curlInput])
   const batchTargetOptions = useMemo(() => detectBatchTargetOptions(curlInput), [curlInput])
   const batchValues = useMemo(() => parseBatchLines(batchInput), [batchInput])
@@ -342,6 +344,7 @@ export function CurlExecutorView() {
 
   function handleClear() {
     setCurlInput('')
+    autoBatchInputRef.current = ''
     setBatchInput('')
     setBatchPlaceholder(DEFAULT_BATCH_PLACEHOLDER)
     setBatchPreview(null)
@@ -370,8 +373,14 @@ export function CurlExecutorView() {
     }
 
     const next = insertBatchTargetPlaceholder(curlInput, selectedTarget)
+    const nextBatchInput = generateBatchExampleValues(selectedTarget.valuePreview)
+    const shouldReplaceBatchInput = batchInput === autoBatchInputRef.current
     setCurlInput(next.curl)
     setBatchPlaceholder(next.placeholder)
+    if (shouldReplaceBatchInput) {
+      autoBatchInputRef.current = nextBatchInput
+      setBatchInput(nextBatchInput)
+    }
     setBatchPreview(null)
     setBatchPreviewError(null)
     setJobResults(null)
@@ -519,9 +528,13 @@ export function CurlExecutorView() {
             <label className="control-label" htmlFor="curl-batch-input">
               Batch values
             </label>
+            <p className="input-help" id="curl-batch-input-help">
+              Editable example values are generated from the selected target shape. Replace them with the exact values your API expects.
+            </p>
             <textarea
               id="curl-batch-input"
               aria-label="Batch values"
+              aria-describedby="curl-batch-input-help"
               className="curl-textarea batch-textarea"
               value={batchInput}
               onChange={(event) => {
@@ -532,7 +545,7 @@ export function CurlExecutorView() {
                 setError(null)
                 setLargeBatchConfirmationPending(false)
               }}
-              placeholder="One value per line"
+              placeholder={autoBatchInputRef.current}
               disabled={isBusy || isJobActive}
             />
             <p className="muted">

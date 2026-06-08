@@ -154,6 +154,52 @@ export function parseBatchLines(input: string): string[] {
     .filter(Boolean)
 }
 
+export function generateBatchExampleValues(valuePreview: string): string {
+  const rawValue = valuePreview.trim()
+  const decodedValue = decodePreview(rawValue.replace(/\+/g, ' '))
+  const isEncoded = /%[0-9A-Fa-f]{2}|\+/.test(rawValue)
+  const examples = examplesForValueShape(decodedValue)
+  return examples
+    .map((example) => (isEncoded ? encodeURIComponent(example) : example))
+    .join('\n')
+}
+
+function examplesForValueShape(value: string): string[] {
+  const trimmed = value.trim()
+  if (isUuid(trimmed)) {
+    return [
+      '2f4c1f5a-1b7a-4a6d-8d76-4f5d4f2c8a91',
+      '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+    ]
+  }
+  if (/^-?\d+$/.test(trimmed)) {
+    const numericValue = Number(trimmed)
+    if (Number.isSafeInteger(numericValue)) {
+      return [String(numericValue + 1), String(numericValue + 2)]
+    }
+  }
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    return ['user.one@example.com', 'user.two@example.com']
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return ['2026-01-15', '2026-01-16']
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/.test(trimmed)) {
+    return ['2026-01-15T10:30:00Z', '2026-01-16T10:30:00Z']
+  }
+  if (/^[A-Za-z0-9_.-]{20,}$/.test(trimmed) || /^[A-Fa-f0-9]{16,}$/.test(trimmed)) {
+    return ['token-alpha-001', 'token-beta-002']
+  }
+  if (/^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)+$/.test(trimmed)) {
+    return ['example-alpha', 'example-beta']
+  }
+  return ['value-001', 'value-002']
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
 export function detectCurlPlaceholders(input: string): string[] {
   const placeholders = new Set<string>()
   const pattern = /\{[A-Za-z][A-Za-z0-9_-]*\}/g

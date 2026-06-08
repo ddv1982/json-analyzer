@@ -132,7 +132,7 @@ Values
 ### Duplicate result card
 
 ```text
-["customer@example.com"]     4 occurrences     [copy] [expand]
+["user@example.com"]     4 occurrences     [copy] [expand]
 ```
 
 Expanded:

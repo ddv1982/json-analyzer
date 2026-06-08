@@ -1,11 +1,11 @@
 import type { CurlLimitsConfig, FeatureFlagsConfig } from '../../lib/commands'
 
-export const SAMPLE_CURL = `curl -X GET 'https://api.example.com/items/1' \\
+export const SAMPLE_CURL = `curl -X GET 'https://api.example.com/items/550e8400-e29b-41d4-a716-446655440000' \\
   -H 'Authorization: Bearer example-token' \\
   -H 'Accept: application/json'`
 
-export const SAMPLE_BATCH_VALUES = `1
-2`
+export const SAMPLE_BATCH_VALUES = `2f4c1f5a-1b7a-4a6d-8d76-4f5d4f2c8a91
+7c9e6679-7425-40de-944b-e07fc1f90ae7`
 
 export const DEFAULT_BATCH_PLACEHOLDER = '{value}'
 

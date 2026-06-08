@@ -40,21 +40,21 @@ describe('App frontend MVP workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
 
     expect(screen.getByRole('heading', { name: /curl executor/i })).toBeInTheDocument()
-    expect((screen.getByRole('textbox', { name: /curl command input/i }) as HTMLTextAreaElement).value).toContain('https://api.example.com/items/1')
+    expect((screen.getByRole('textbox', { name: /curl command input/i }) as HTMLTextAreaElement).value).toContain('https://api.example.com/items/550e8400-e29b-41d4-a716-446655440000')
     expect(screen.getByRole('button', { name: /^execute$/i })).toBeEnabled()
     expect(screen.queryByRole('button', { name: /preview request/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /start background run/i })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /^execute$/i }))
     expect(executeCurlMock).toHaveBeenCalledWith({
-      curl: expect.stringContaining('https://api.example.com/items/1'),
+      curl: expect.stringContaining('https://api.example.com/items/550e8400-e29b-41d4-a716-446655440000'),
       timeout_ms: 30_000,
       follow_redirects: true,
     })
     const response = await screen.findByLabelText(/curl execution response/i)
     expect(startCurlJobMock).not.toHaveBeenCalled()
     expect(response).toHaveTextContent('200 OK')
-    expect(response).toHaveTextContent('GET https://api.example.com/items/1')
+    expect(response).toHaveTextContent('GET https://api.example.com/items/550e8400-e29b-41d4-a716-446655440000')
     expect(response).toHaveTextContent('Complete')
     expect(response).toHaveTextContent('Set-Cookie')
     expect(response).toHaveTextContent('Redacted')
@@ -267,13 +267,16 @@ describe('App frontend MVP workflow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
     await unlockCurlBatchMode()
+    expect(screen.getByRole('textbox', { name: /batch values/i })).toHaveValue(
+      '2f4c1f5a-1b7a-4a6d-8d76-4f5d4f2c8a91\n7c9e6679-7425-40de-944b-e07fc1f90ae7',
+    )
     fireEvent.click(screen.getByRole('button', { name: /execute batch/i }))
 
     expect(await screen.findByLabelText(/curl job status/i)).toHaveTextContent('Running')
     expect(startCurlJobMock).toHaveBeenCalledWith({
       curl: expect.stringContaining('https://api.example.com/items/{value}'),
       placeholder: '{value}',
-      values: ['1', '2'],
+      values: ['2f4c1f5a-1b7a-4a6d-8d76-4f5d4f2c8a91', '7c9e6679-7425-40de-944b-e07fc1f90ae7'],
       timeout_ms: 30_000,
       max_concurrency: 5,
       follow_redirects: true,
@@ -289,6 +292,90 @@ describe('App frontend MVP workflow', () => {
     await waitFor(() => {
       expect(writeClipboardTextMock).toHaveBeenCalledWith('[\n  {\n    "ok": true\n  }\n]')
     })
+  })
+
+  it('updates editable batch examples from the selected URL target shape', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    const batchRadio = screen.getByRole('radio', { name: /batch mode/i })
+    await waitFor(() => {
+      expect(batchRadio).toBeEnabled()
+    })
+    fireEvent.click(batchRadio)
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    const batchValuesInput = screen.getByRole('textbox', { name: /batch values/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/items/123?email=alice%40example.com'",
+      },
+    })
+
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'path:1:123' },
+    })
+    expect(batchValuesInput).toHaveValue('124\n125')
+
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/items/123?email=alice%40example.com'",
+      },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'query:0' },
+    })
+    expect(batchValuesInput).toHaveValue('user.one%40example.com\nuser.two%40example.com')
+  })
+
+  it('does not overwrite user-entered batch values when the selected target changes', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    const batchRadio = screen.getByRole('radio', { name: /batch mode/i })
+    await waitFor(() => {
+      expect(batchRadio).toBeEnabled()
+    })
+    fireEvent.click(batchRadio)
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    const batchValuesInput = screen.getByRole('textbox', { name: /batch values/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/items/123?status=open'",
+      },
+    })
+    fireEvent.change(batchValuesInput, {
+      target: { value: 'manual-alpha\nmanual-beta' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'path:1:123' },
+    })
+
+    expect(batchValuesInput).toHaveValue('manual-alpha\nmanual-beta')
+  })
+
+  it('repopulates smart batch examples after clearing the form', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    const batchRadio = screen.getByRole('radio', { name: /batch mode/i })
+    await waitFor(() => {
+      expect(batchRadio).toBeEnabled()
+    })
+    fireEvent.click(batchRadio)
+    fireEvent.click(screen.getByRole('button', { name: /^clear$/i }))
+
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    const batchValuesInput = screen.getByRole('textbox', { name: /batch values/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl 'https://api.example.com/items/123'",
+      },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: /batch variable/i }), {
+      target: { value: 'path:1:123' },
+    })
+
+    expect(batchValuesInput).toHaveValue('124\n125')
   })
 
   it('keeps the curl editor available in batch mode and submits generic placeholder fields', async () => {
@@ -809,7 +896,7 @@ describe('App frontend MVP workflow', () => {
     })
     fireEvent.click(batchRadio)
     fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
-      target: { value: "curl 'https://api.example.com/items/1'" },
+      target: { value: "curl 'https://api.example.com/items/550e8400-e29b-41d4-a716-446655440000'" },
     })
 
     expect(screen.getByRole('combobox', { name: /batch variable/i })).toHaveTextContent('Path after /items')

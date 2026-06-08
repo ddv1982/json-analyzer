@@ -170,7 +170,7 @@ export const appConfig: ConfigResponse = {
 export const curlPreviewOk: CurlParseResponse = {
   parsed: {
     method: 'GET',
-    url: 'https://api.example.com/items/1',
+    url: 'https://api.example.com/items/550e8400-e29b-41d4-a716-446655440000',
     headers: [
       { name: 'Authorization', value: 'Bearer ***', redacted: true },
       { name: 'Accept', value: 'application/json', redacted: false },
