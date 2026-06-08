@@ -297,7 +297,9 @@ impl CurlJobManager {
                             limits,
                             client.as_ref(),
                         ) {
-                            Ok(response) => curl_job_result_from_response(index, input_value, response),
+                            Ok(response) => {
+                                curl_job_result_from_response(index, input_value, response)
+                            }
                             Err(error) => CurlJobResult {
                                 index,
                                 status: CurlJobStatus::Failed,
@@ -514,7 +516,11 @@ fn curl_job_result_from_response(
     input_value: Option<String>,
     response: crate::CurlExecuteResponse,
 ) -> CurlJobResult {
-    let http_status = response.response.as_ref().map(|http| http.status).unwrap_or(0);
+    let http_status = response
+        .response
+        .as_ref()
+        .map(|http| http.status)
+        .unwrap_or(0);
     CurlJobResult {
         index,
         status: if http_status >= 400 {
