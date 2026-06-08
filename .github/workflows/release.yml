@@ -329,17 +329,19 @@ jobs:
             "${passphrase_args[@]}" \
             "${deb_packages[@]}"
 
+          mkdir -p release-assets
           EXPECTED_FINGERPRINT="${expected_fingerprint}" python3 <<'PY'
           import os
           import pathlib
 
           fingerprint = os.environ["EXPECTED_FINGERPRINT"]
           script_path = pathlib.Path("scripts/install-apt-repo.sh")
+          output_path = pathlib.Path("release-assets/install-apt-repo.sh")
           script = script_path.read_text(encoding="utf-8")
           placeholder = "__JSON_ANALYZER_APT_SIGNING_KEY_FINGERPRINT__"
           if placeholder not in script:
               raise SystemExit(f"missing installer fingerprint placeholder {placeholder}")
-          script_path.write_text(script.replace(placeholder, fingerprint), encoding="utf-8")
+          output_path.write_text(script.replace(placeholder, fingerprint), encoding="utf-8")
           PY
 
           sha256sum "${setup_package}" > "${setup_package}.sha256"
@@ -367,8 +369,13 @@ jobs:
           grep -Fx "Components: main" "${setup_extract_dir}/etc/apt/sources.list.d/json-analyzer.sources"
           grep -E '^Architectures: .*amd64( |$)' "${setup_extract_dir}/etc/apt/sources.list.d/json-analyzer.sources"
           grep -Fx "Signed-By: /usr/share/keyrings/json-analyzer-archive-keyring.pgp" "${setup_extract_dir}/etc/apt/sources.list.d/json-analyzer.sources"
-          sh -n scripts/install-apt-repo.sh
-          ! grep -F "__JSON_ANALYZER_APT_SIGNING_KEY_FINGERPRINT__" scripts/install-apt-repo.sh
+          sh -n release-assets/install-apt-repo.sh
+          ! grep -F "__JSON_ANALYZER_APT_SIGNING_KEY_FINGERPRINT__" release-assets/install-apt-repo.sh
+          grep -F "JSON_ANALYZER_REPOSITORY_SETUP_SIGNING_KEY_FINGERPRINT:-${expected_fingerprint}" release-assets/install-apt-repo.sh
+          if grep -F "if [ \"\$expected_signing_fingerprint\" = \"${expected_fingerprint}\" ]" release-assets/install-apt-repo.sh; then
+            echo "Generated installer would clear the pinned signing fingerprint." >&2
+            exit 1
+          fi
 
           chmod 700 "${verification_home}"
           GNUPGHOME="${verification_home}" gpg --batch --import apt-repository/json-analyzer-archive-keyring.pgp
@@ -406,7 +413,7 @@ jobs:
             json-analyzer-repository-setup_*.deb
             json-analyzer-repository-setup_*.deb.sha256
             json-analyzer-repository-setup_*.deb.sha256.asc
-            scripts/install-apt-repo.sh
+            release-assets/install-apt-repo.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

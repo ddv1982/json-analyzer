@@ -7,6 +7,7 @@ setup_sha256_sig_url="${JSON_ANALYZER_REPOSITORY_SETUP_SHA256_SIG_URL:-${setup_s
 signing_key_url="${JSON_ANALYZER_REPOSITORY_SETUP_SIGNING_KEY_URL:-https://ddv1982.github.io/json-analyzer/apt/json-analyzer-archive-keyring.pgp}"
 expected_sha256="${JSON_ANALYZER_REPOSITORY_SETUP_SHA256:-}"
 expected_signing_fingerprint="${JSON_ANALYZER_REPOSITORY_SETUP_SIGNING_KEY_FINGERPRINT:-__JSON_ANALYZER_APT_SIGNING_KEY_FINGERPRINT__}"
+placeholder_signing_fingerprint="__JSON_ANALYZER_APT_SIGNING_KEY""_FINGERPRINT__"
 tmp_dir=""
 setup_deb=""
 setup_sha256_file=""
@@ -22,7 +23,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'trap - EXIT; cleanup; exit 130' HUP INT TERM
 
-if [ "$expected_signing_fingerprint" = "__JSON_ANALYZER_APT_SIGNING_KEY_FINGERPRINT__" ]; then
+if [ "$expected_signing_fingerprint" = "$placeholder_signing_fingerprint" ]; then
   expected_signing_fingerprint=""
 fi
 expected_signing_fingerprint="$(printf '%s' "$expected_signing_fingerprint" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
