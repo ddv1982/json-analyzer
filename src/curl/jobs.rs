@@ -244,7 +244,7 @@ impl CurlJobManager {
                     index,
                     status: CurlJobStatus::Failed,
                     input_value,
-                    request_preview: redacted_preview(&curl),
+                    request_preview: redacted_preview(curl),
                     response: None,
                     error: Some(to_serializable_problem(error)),
                 },
