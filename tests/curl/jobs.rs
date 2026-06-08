@@ -141,13 +141,10 @@ fn curl_job_manager_expands_generic_batch_and_tracks_input_values() {
     assert_eq!(results.results[0].input_value.as_deref(), Some("one"));
     assert_eq!(results.results[1].input_value.as_deref(), Some("two"));
     let seen_requests = client.seen_requests();
-    assert!(seen_requests[0].raw_url.ends_with("/items/one"));
-    assert_eq!(seen_requests[0].raw_headers[0].value, "one");
-    assert_eq!(
-        seen_requests[0].raw_body.as_deref(),
-        Some("{\"id\":\"one\"}")
-    );
-    assert!(seen_requests[1].raw_url.ends_with("/items/two"));
+    assert!(seen_requests[0].url.ends_with("/items/one"));
+    assert_eq!(seen_requests[0].headers[0].value, "one");
+    assert_eq!(seen_requests[0].body.as_deref(), Some("{\"id\":\"one\"}"));
+    assert!(seen_requests[1].url.ends_with("/items/two"));
 }
 
 #[test]
