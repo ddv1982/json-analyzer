@@ -35,7 +35,7 @@ import {
 
 export function CurlExecutorView() {
   const [mode, setMode] = useState<CurlMode>('single')
-  const [curlInput, setCurlInput] = useState(SAMPLE_CURL)
+  const [curlInput, setCurlInput] = useState('')
   const [batchInput, setBatchInput] = useState(SAMPLE_BATCH_VALUES)
   const [batchPlaceholder, setBatchPlaceholder] = useState(DEFAULT_BATCH_PLACEHOLDER)
   const [batchPreview, setBatchPreview] = useState<string | null>(null)
@@ -63,7 +63,7 @@ export function CurlExecutorView() {
   const hasInput = mode === 'single'
     ? curlInput.trim().length > 0
     : curlInput.trim().length > 0 && batchValues.length > 0
-  const hasAnyInput = curlInput.trim().length > 0 || batchInput.trim().length > 0
+  const hasAnyInput = curlInput.trim().length > 0 || (mode === 'batch' && batchInput.trim().length > 0)
   const canExecuteBatchSetup =
     mode === 'batch' &&
     hasInput &&
@@ -489,7 +489,7 @@ export function CurlExecutorView() {
             setBatchPreview(null)
             setBatchPreviewError(null)
           }}
-          placeholder="curl --location 'https://api.example.com/endpoint' --header 'Authorization: Bearer token'"
+          placeholder={SAMPLE_CURL}
           disabled={isBusy || isJobActive}
         />
 

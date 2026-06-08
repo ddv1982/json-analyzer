@@ -1,6 +1,6 @@
 [package]
 name = "json-analyzer-app"
-version = "0.1.12"
+version = "0.1.13"
 edition = "2024"
 description = "JSON Analyzer desktop application shell"
 license = "MIT"

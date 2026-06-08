@@ -20,6 +20,7 @@ import {
   type CurlJobResponse,
   type CurlJobResultsResponse,
 } from './test/app-test-harness'
+import { SAMPLE_CURL } from './components/curl-executor/constants'
 
 describe('App frontend MVP workflow', () => {
   beforeAll(async () => {
@@ -39,8 +40,12 @@ describe('App frontend MVP workflow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
 
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
     expect(screen.getByRole('heading', { name: /curl executor/i })).toBeInTheDocument()
-    expect((screen.getByRole('textbox', { name: /curl command input/i }) as HTMLTextAreaElement).value).toContain('https://api.example.com/items/550e8400-e29b-41d4-a716-446655440000')
+    expect(curlEditor).toHaveValue('')
+    expect(curlEditor).toHaveAttribute('placeholder', SAMPLE_CURL)
+    expect(screen.getByRole('button', { name: /^execute$/i })).toBeDisabled()
+    fireEvent.change(curlEditor, { target: { value: SAMPLE_CURL } })
     expect(screen.getByRole('button', { name: /^execute$/i })).toBeEnabled()
     expect(screen.queryByRole('button', { name: /preview request/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /start background run/i })).not.toBeInTheDocument()
@@ -983,6 +988,9 @@ describe('App frontend MVP workflow', () => {
     renderApp()
 
     fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: { value: SAMPLE_CURL },
+    })
     fireEvent.click(screen.getByRole('button', { name: /^execute$/i }))
 
     const alert = await screen.findByRole('alert')

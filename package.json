@@ -1,7 +1,7 @@
 {
   "name": "json-analyzer",
   "private": true,
-  "version": "0.1.12",
+  "version": "0.1.13",
   "scripts": {
     "baseline": "node scripts/collect_baseline.mjs",
     "check": "pnpm run check:rust && pnpm run check:frontend && pnpm run check:tauri",
