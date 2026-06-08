@@ -649,7 +649,9 @@ fn normalize_max_concurrency(
     } else if limits.max_concurrency == 0 {
         1
     } else {
-        limits.default_max_concurrency.clamp(1, limits.max_concurrency)
+        limits
+            .default_max_concurrency
+            .clamp(1, limits.max_concurrency)
     };
     if max_concurrency == 0 {
         return Err(AppError::invalid_request(

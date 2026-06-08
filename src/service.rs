@@ -547,10 +547,7 @@ fn curl_job_kind(request: &CurlStartJobRequest) -> CurlJobKind {
         .placeholder
         .as_ref()
         .map_or(false, |placeholder| !placeholder.trim().is_empty());
-    let has_values = request
-        .values
-        .iter()
-        .any(|value| !value.trim().is_empty());
+    let has_values = request.values.iter().any(|value| !value.trim().is_empty());
     if has_placeholder || has_values {
         CurlJobKind::Batch
     } else {

@@ -143,7 +143,10 @@ fn curl_job_manager_expands_generic_batch_and_tracks_input_values() {
     let seen_requests = client.seen_requests();
     assert!(seen_requests[0].raw_url.ends_with("/items/one"));
     assert_eq!(seen_requests[0].raw_headers[0].value, "one");
-    assert_eq!(seen_requests[0].raw_body.as_deref(), Some("{\"id\":\"one\"}"));
+    assert_eq!(
+        seen_requests[0].raw_body.as_deref(),
+        Some("{\"id\":\"one\"}")
+    );
     assert!(seen_requests[1].raw_url.ends_with("/items/two"));
 }
 
@@ -167,7 +170,10 @@ fn curl_job_manager_rejects_invalid_generic_batch_before_enqueueing() {
             client.clone(),
         )
         .unwrap_err();
-    assert_eq!(missing_placeholder.problem.invalid_params[0].name, "placeholder");
+    assert_eq!(
+        missing_placeholder.problem.invalid_params[0].name,
+        "placeholder"
+    );
 
     let invalid_generated = manager
         .start_job_with_client(
