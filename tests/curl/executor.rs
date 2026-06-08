@@ -156,7 +156,10 @@ fn execute_curl_rejects_guardrail_denied_targets_before_network() {
             timeout_ms: Some(1_000),
             follow_redirects: false,
         },
-        &CurlLimitsConfig::default(),
+        &CurlLimitsConfig {
+            allow_private_networks_by_default: false,
+            ..CurlLimitsConfig::default()
+        },
         &client,
     )
     .unwrap_err();
@@ -293,7 +296,10 @@ fn execute_curl_blocks_redirects_to_private_targets() {
             timeout_ms: Some(1_000),
             follow_redirects: true,
         },
-        &CurlLimitsConfig::default(),
+        &CurlLimitsConfig {
+            allow_private_networks_by_default: false,
+            ..CurlLimitsConfig::default()
+        },
         &client,
     )
     .unwrap_err();

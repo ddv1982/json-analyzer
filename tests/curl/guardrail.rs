@@ -9,7 +9,16 @@ fn guardrail_decisions_match_source_derived_contracts_without_network_access() {
     let outcomes = fixture["curl_executor"]["guardrail_outcomes"]
         .as_array()
         .unwrap();
-    let service = JsonAnalyzerService::default();
+    let service = JsonAnalyzerService::new(AppConfig {
+        limits: LimitsConfig {
+            curl: CurlLimitsConfig {
+                allow_private_networks_by_default: false,
+                ..CurlLimitsConfig::default()
+            },
+            ..LimitsConfig::default()
+        },
+        ..AppConfig::default()
+    });
 
     for outcome in outcomes {
         let request = &outcome["request"];
