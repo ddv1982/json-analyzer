@@ -9,6 +9,7 @@ expected_sha256="${JSON_ANALYZER_REPOSITORY_SETUP_SHA256:-}"
 expected_signing_fingerprint="${JSON_ANALYZER_REPOSITORY_SETUP_SIGNING_KEY_FINGERPRINT:-__JSON_ANALYZER_APT_SIGNING_KEY_FINGERPRINT__}"
 placeholder_signing_fingerprint="__JSON_ANALYZER_APT_SIGNING_KEY""_FINGERPRINT__"
 tmp_dir=""
+apt_tmp_dir=""
 setup_deb=""
 setup_sha256_file=""
 setup_sha256_sig_file=""
@@ -16,6 +17,9 @@ signing_key_file=""
 gnupg_home=""
 
 cleanup() {
+  if [ -n "$apt_tmp_dir" ]; then
+    rm -rf "$apt_tmp_dir"
+  fi
   if [ -n "$tmp_dir" ]; then
     rm -rf "$tmp_dir"
   fi
@@ -223,7 +227,9 @@ authenticate_sha256_sidecar() {
 }
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/json-analyzer-repository-setup.XXXXXX")"
-setup_deb="$tmp_dir/json-analyzer-repository-setup_1.0_all.deb"
+apt_tmp_dir="$(mktemp -d "/tmp/json-analyzer-repository-setup-install.XXXXXX")"
+chmod 0755 "$apt_tmp_dir"
+setup_deb="$apt_tmp_dir/json-analyzer-repository-setup_1.0_all.deb"
 setup_sha256_file="$tmp_dir/json-analyzer-repository-setup_1.0_all.deb.sha256"
 setup_sha256_sig_file="$tmp_dir/json-analyzer-repository-setup_1.0_all.deb.sha256.asc"
 signing_key_file="$tmp_dir/json-analyzer-archive-keyring.pgp"
