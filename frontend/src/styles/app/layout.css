@@ -308,6 +308,12 @@
   color: var(--color-warning-text);
 }
 
+.info-state {
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+  color: var(--color-info-text);
+}
+
 textarea {
   width: 100%;
   min-height: clamp(24rem, 50vh, 33rem);

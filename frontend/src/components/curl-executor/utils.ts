@@ -75,6 +75,23 @@ export function parseBatchLines(input: string): string[] {
     .filter(Boolean)
 }
 
+export function detectCurlPlaceholders(input: string): string[] {
+  const placeholders = new Set<string>()
+  const pattern = /\{[A-Za-z][A-Za-z0-9_-]*\}/g
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(input)) !== null) {
+    placeholders.add(match[0])
+  }
+  return Array.from(placeholders).sort((left, right) => left.localeCompare(right))
+}
+
+export function buildBatchCurls(curl: string, placeholder: string, values: string[]): string[] {
+  if (!placeholder || !curl.includes(placeholder)) {
+    return []
+  }
+  return values.map((value) => curl.split(placeholder).join(value))
+}
+
 export function isTerminalJobStatus(status: CurlJobStatus): boolean {
   return status === 'succeeded' || status === 'failed' || status === 'canceled'
 }
@@ -127,6 +144,25 @@ export function buildMergedJobDataPayload(results: CurlJobResultsResponse['resul
   }
 
   return JSON.stringify(bodies, null, 2)
+}
+
+export interface BatchErrorGroup {
+  message: string
+  inputValues: string[]
+}
+
+export function buildBatchErrorGroups(results: CurlJobResultsResponse['results']): BatchErrorGroup[] {
+  const groups = new Map<string, BatchErrorGroup>()
+  for (const result of results) {
+    if (!result.error) {
+      continue
+    }
+    const message = result.error.detail || result.error.title || result.error.error_type
+    const group = groups.get(message) ?? { message, inputValues: [] }
+    group.inputValues.push(result.input_value?.trim() || `#${result.index + 1}`)
+    groups.set(message, group)
+  }
+  return Array.from(groups.values())
 }
 
 function parseResponseBodyForCopy(body: string): unknown {

@@ -9,8 +9,13 @@ use commands::{
 use json_analyzer::{AppConfig, JsonAnalyzerService};
 
 fn main() {
+    let mut config = AppConfig::default();
+    if let Some(allow_private_networks) = curl_allow_private_networks_from_env() {
+        config.limits.curl.allow_private_networks_by_default = allow_private_networks;
+    }
+
     tauri::Builder::default()
-        .manage(JsonAnalyzerService::new(AppConfig::default()))
+        .manage(JsonAnalyzerService::new(config))
         .invoke_handler(tauri::generate_handler![
             validate_json,
             format_json,
@@ -34,4 +39,15 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running JSON Analyzer Tauri app");
+}
+
+fn curl_allow_private_networks_from_env() -> Option<bool> {
+    std::env::var("JSON_ANALYZER_CURL_ALLOW_PRIVATE_NETWORKS")
+        .or_else(|_| std::env::var("CURL_ALLOW_PRIVATE_NETWORKS"))
+        .ok()
+        .and_then(|value| match value.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => Some(true),
+            "0" | "false" | "no" | "off" => Some(false),
+            _ => None,
+        })
 }

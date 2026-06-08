@@ -111,7 +111,9 @@ describe('Tauri command wrappers', () => {
     await validateCurlGuardrail({ method: 'GET', url: 'https://api.example.com', redirect_target: null })
     await executeCurl({ curl: 'curl https://api.example.com', timeout_ms: 30_000, follow_redirects: true })
     await startCurlJob({
-      curls: ['curl https://api.example.com'],
+      curl: 'curl https://api.example.com',
+      placeholder: null,
+      values: [],
       timeout_ms: null,
       follow_redirects: true,
       confirm_large_batch: false,
@@ -195,7 +197,9 @@ describe('Tauri command wrappers', () => {
     })
     expect(invokeMock).toHaveBeenNthCalledWith(15, 'start_curl_job', {
       request: {
-        curls: ['curl https://api.example.com'],
+        curl: 'curl https://api.example.com',
+        placeholder: null,
+        values: [],
         timeout_ms: null,
         follow_redirects: true,
         confirm_large_batch: false,

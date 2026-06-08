@@ -366,7 +366,7 @@ impl JsonAnalyzerService {
         &self,
         request: CurlStartJobRequest,
     ) -> Result<CurlJobResponse, AppError> {
-        self.validate_curl_job_features(request.curls.len())?;
+        self.validate_curl_job_features(curl_job_kind(&request))?;
         self.curl_jobs
             .start_job(request, self.config.limits.curl.clone())
     }
@@ -497,7 +497,7 @@ impl JsonAnalyzerService {
         Ok(())
     }
 
-    fn validate_curl_job_features(&self, request_count: usize) -> Result<(), AppError> {
+    fn validate_curl_job_features(&self, job_kind: CurlJobKind) -> Result<(), AppError> {
         self.validate_curl_executor_enabled()?;
         if !self.config.features.curl_jobs {
             return Err(AppError::unsupported_config(
@@ -505,13 +505,13 @@ impl JsonAnalyzerService {
                 "curl async jobs are disabled by configuration",
             ));
         }
-        if request_count == 1 && !self.config.features.curl_single_request_execution {
+        if job_kind == CurlJobKind::Single && !self.config.features.curl_single_request_execution {
             return Err(AppError::unsupported_config(
                 "features.curl_single_request_execution",
                 "curl single-request execution is disabled by configuration",
             ));
         }
-        if request_count > 1 && !self.config.features.curl_batch {
+        if job_kind == CurlJobKind::Batch && !self.config.features.curl_batch {
             return Err(AppError::unsupported_config(
                 "features.curl_batch",
                 "curl batch execution is disabled by configuration",
@@ -535,6 +535,29 @@ impl JsonAnalyzerService {
         Ok(())
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CurlJobKind {
+    Single,
+    Batch,
+}
+
+fn curl_job_kind(request: &CurlStartJobRequest) -> CurlJobKind {
+    let has_placeholder = request
+        .placeholder
+        .as_ref()
+        .map_or(false, |placeholder| !placeholder.trim().is_empty());
+    let has_values = request
+        .values
+        .iter()
+        .any(|value| !value.trim().is_empty());
+    if has_placeholder || has_values {
+        CurlJobKind::Batch
+    } else {
+        CurlJobKind::Single
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::JsonAnalyzerService;

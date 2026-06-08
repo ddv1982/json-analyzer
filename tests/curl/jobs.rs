@@ -20,10 +20,11 @@ fn curl_job_manager_redacts_network_error_details_before_storage() {
     let started = manager
         .start_job_with_client(
             CurlStartJobRequest {
-                curls: vec![
-                    "curl 'http://user:password@93.184.216.34/items?secret=hidden&id=1'"
-                        .to_string(),
-                ],
+                curl: "curl 'http://user:password@93.184.216.34/items?secret=hidden&id=1'"
+                    .to_string(),
+                placeholder: None,
+                values: Vec::new(),
+                max_concurrency: None,
                 timeout_ms: Some(50),
                 follow_redirects: false,
                 confirm_large_batch: false,
@@ -45,7 +46,10 @@ fn wait_until_job_can_start(manager: &CurlJobManager) -> String {
     loop {
         match manager.start_job_with_client(
             CurlStartJobRequest {
-                curls: vec!["curl http://93.184.216.34/replacement".to_string()],
+                curl: "curl http://93.184.216.34/replacement".to_string(),
+                placeholder: None,
+                values: Vec::new(),
+                max_concurrency: None,
                 timeout_ms: Some(1_000),
                 follow_redirects: false,
                 confirm_large_batch: false,
@@ -78,10 +82,10 @@ fn curl_job_manager_executes_batch_and_aggregates_results_with_mocked_client() {
     let started = manager
         .start_job_with_client(
             CurlStartJobRequest {
-                curls: vec![
-                    "curl http://93.184.216.34/one".to_string(),
-                    "curl http://93.184.216.34/two".to_string(),
-                ],
+                curl: "curl http://93.184.216.34/{item}".to_string(),
+                placeholder: Some("{item}".to_string()),
+                values: vec!["one".to_string(), "two".to_string()],
+                max_concurrency: Some(1),
                 timeout_ms: Some(50),
                 follow_redirects: false,
                 confirm_large_batch: false,
@@ -98,13 +102,92 @@ fn curl_job_manager_executes_batch_and_aggregates_results_with_mocked_client() {
     assert_eq!(results.job.failed_requests, 1);
     assert_eq!(results.job.canceled_requests, 0);
     assert_eq!(results.results[0].status, CurlJobStatus::Succeeded);
+    assert_eq!(results.results[0].input_value.as_deref(), Some("one"));
     assert_eq!(results.results[0].response.as_ref().unwrap().body, "one");
     assert_eq!(results.results[1].status, CurlJobStatus::Failed);
+    assert_eq!(results.results[1].input_value.as_deref(), Some("two"));
     assert_eq!(
         results.results[1].error.as_ref().unwrap().error_type,
         "curl_timeout"
     );
 }
+
+#[test]
+fn curl_job_manager_expands_generic_batch_and_tracks_input_values() {
+    let manager = CurlJobManager::new();
+    let client = Arc::new(SequenceCurlClient::new(vec![
+        Ok(mock_response(200, b"one")),
+        Ok(mock_response(200, b"two")),
+    ]));
+    let started = manager
+        .start_job_with_client(
+            CurlStartJobRequest {
+                curl: "curl -H 'X-Item: {item}' --data '{\"id\":\"{item}\"}' http://93.184.216.34/items/{item}"
+                    .to_string(),
+                placeholder: Some("{item}".to_string()),
+                values: vec!["one".to_string(), "two".to_string()],
+                max_concurrency: Some(1),
+                timeout_ms: Some(50),
+                follow_redirects: false,
+                confirm_large_batch: false,
+            },
+            CurlLimitsConfig::default(),
+            client.clone(),
+        )
+        .unwrap();
+
+    let results = wait_for_job_results(&manager, &started.job.job_id);
+    assert_eq!(results.job.status, CurlJobStatus::Succeeded);
+    assert_eq!(results.results[0].input_value.as_deref(), Some("one"));
+    assert_eq!(results.results[1].input_value.as_deref(), Some("two"));
+    let seen_requests = client.seen_requests();
+    assert!(seen_requests[0].raw_url.ends_with("/items/one"));
+    assert_eq!(seen_requests[0].raw_headers[0].value, "one");
+    assert_eq!(seen_requests[0].raw_body.as_deref(), Some("{\"id\":\"one\"}"));
+    assert!(seen_requests[1].raw_url.ends_with("/items/two"));
+}
+
+#[test]
+fn curl_job_manager_rejects_invalid_generic_batch_before_enqueueing() {
+    let manager = CurlJobManager::new();
+    let client = Arc::new(RecordingCurlClient::new(Ok(mock_response(200, b"ok"))));
+
+    let missing_placeholder = manager
+        .start_job_with_client(
+            CurlStartJobRequest {
+                curl: "curl http://93.184.216.34/items".to_string(),
+                placeholder: Some("{id}".to_string()),
+                values: vec!["1".to_string()],
+                max_concurrency: None,
+                timeout_ms: Some(50),
+                follow_redirects: false,
+                confirm_large_batch: false,
+            },
+            CurlLimitsConfig::default(),
+            client.clone(),
+        )
+        .unwrap_err();
+    assert_eq!(missing_placeholder.problem.invalid_params[0].name, "placeholder");
+
+    let invalid_generated = manager
+        .start_job_with_client(
+            CurlStartJobRequest {
+                curl: "curl http://93.184.216.34/items/{id}".to_string(),
+                placeholder: Some("{id}".to_string()),
+                values: vec!["one two".to_string()],
+                max_concurrency: None,
+                timeout_ms: Some(50),
+                follow_redirects: false,
+                confirm_large_batch: false,
+            },
+            CurlLimitsConfig::default(),
+            client.clone(),
+        )
+        .unwrap_err();
+    assert_eq!(invalid_generated.problem.invalid_params[0].name, "curl");
+    assert!(client.seen_requests().is_empty());
+}
+
 #[test]
 fn curl_job_manager_rejects_invalid_timeout_before_enqueueing() {
     let manager = CurlJobManager::new();
@@ -113,7 +196,10 @@ fn curl_job_manager_rejects_invalid_timeout_before_enqueueing() {
     let error = manager
         .start_job_with_client(
             CurlStartJobRequest {
-                curls: vec!["curl http://93.184.216.34/one".to_string()],
+                curl: "curl http://93.184.216.34/one".to_string(),
+                placeholder: None,
+                values: Vec::new(),
+                max_concurrency: None,
                 timeout_ms: Some(0),
                 follow_redirects: false,
                 confirm_large_batch: false,
@@ -140,10 +226,10 @@ fn curl_job_manager_requires_large_batch_confirmation_and_enforces_batch_limit()
     let unconfirmed = manager
         .start_job_with_client(
             CurlStartJobRequest {
-                curls: vec![
-                    "curl http://93.184.216.34/one".to_string(),
-                    "curl http://93.184.216.34/two".to_string(),
-                ],
+                curl: "curl http://93.184.216.34/{item}".to_string(),
+                placeholder: Some("{item}".to_string()),
+                values: vec!["one".to_string(), "two".to_string()],
+                max_concurrency: None,
                 timeout_ms: Some(50),
                 follow_redirects: false,
                 confirm_large_batch: false,
@@ -160,12 +246,15 @@ fn curl_job_manager_requires_large_batch_confirmation_and_enforces_batch_limit()
     let too_large = manager
         .start_job_with_client(
             CurlStartJobRequest {
-                curls: vec![
-                    "curl http://93.184.216.34/one".to_string(),
-                    "curl http://93.184.216.34/two".to_string(),
-                    "curl http://93.184.216.34/three".to_string(),
-                    "curl http://93.184.216.34/four".to_string(),
+                curl: "curl http://93.184.216.34/{item}".to_string(),
+                placeholder: Some("{item}".to_string()),
+                values: vec![
+                    "one".to_string(),
+                    "two".to_string(),
+                    "three".to_string(),
+                    "four".to_string(),
                 ],
+                max_concurrency: None,
                 timeout_ms: Some(50),
                 follow_redirects: false,
                 confirm_large_batch: true,
@@ -174,7 +263,7 @@ fn curl_job_manager_requires_large_batch_confirmation_and_enforces_batch_limit()
             client,
         )
         .unwrap_err();
-    assert_eq!(too_large.problem.invalid_params[0].name, "curls");
+    assert_eq!(too_large.problem.invalid_params[0].name, "values");
 }
 #[test]
 fn canceled_running_curl_jobs_keep_active_slots_until_workers_exit() {
@@ -186,7 +275,10 @@ fn canceled_running_curl_jobs_keep_active_slots_until_workers_exit() {
         let started = manager
             .start_job_with_client(
                 CurlStartJobRequest {
-                    curls: vec![format!("curl http://93.184.216.34/blocking-{index}")],
+                    curl: format!("curl http://93.184.216.34/blocking-{index}"),
+                    placeholder: None,
+                    values: Vec::new(),
+                    max_concurrency: None,
                     timeout_ms: Some(1_000),
                     follow_redirects: false,
                     confirm_large_batch: false,
@@ -211,7 +303,10 @@ fn canceled_running_curl_jobs_keep_active_slots_until_workers_exit() {
     let rejected_while_workers_blocked = manager
         .start_job_with_client(
             CurlStartJobRequest {
-                curls: vec!["curl http://93.184.216.34/rejected".to_string()],
+                curl: "curl http://93.184.216.34/rejected".to_string(),
+                placeholder: None,
+                values: Vec::new(),
+                max_concurrency: None,
                 timeout_ms: Some(1_000),
                 follow_redirects: false,
                 confirm_large_batch: false,
@@ -240,10 +335,10 @@ fn canceling_curl_job_leaves_terminal_canceled_state() {
     let started = manager
         .start_job_with_client(
             CurlStartJobRequest {
-                curls: vec![
-                    "curl http://93.184.216.34/slow".to_string(),
-                    "curl http://93.184.216.34/queued".to_string(),
-                ],
+                curl: "curl http://93.184.216.34/{item}".to_string(),
+                placeholder: Some("{item}".to_string()),
+                values: vec!["slow".to_string(), "queued".to_string()],
+                max_concurrency: None,
                 timeout_ms: Some(1_000),
                 follow_redirects: false,
                 confirm_large_batch: false,

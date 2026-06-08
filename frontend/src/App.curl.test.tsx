@@ -4,6 +4,7 @@ import {
   appConfig,
   cancelCurlJobMock,
   curlJobCanceledResults,
+  curlPreviewOk,
   curlJobStarted,
   curlJobSucceeded,
   executeCurlMock,
@@ -38,22 +39,21 @@ describe('App frontend MVP workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
 
     expect(screen.getByRole('heading', { name: /curl executor/i })).toBeInTheDocument()
-    expect((screen.getByRole('textbox', { name: /curl command input/i }) as HTMLTextAreaElement).value).toContain('curl -X POST')
+    expect((screen.getByRole('textbox', { name: /curl command input/i }) as HTMLTextAreaElement).value).toContain('https://api.example.com/items/1')
     expect(screen.getByRole('button', { name: /^execute$/i })).toBeEnabled()
     expect(screen.queryByRole('button', { name: /preview request/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /start background run/i })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /^execute$/i }))
-    expect(startCurlJobMock).toHaveBeenCalledWith({
-      curls: [expect.stringContaining('https://api.example.com/users')],
-      timeout_ms: null,
+    expect(executeCurlMock).toHaveBeenCalledWith({
+      curl: expect.stringContaining('https://api.example.com/items/1'),
+      timeout_ms: 30_000,
       follow_redirects: true,
-      confirm_large_batch: false,
     })
-    expect(await screen.findByRole('button', { name: /stop/i })).toBeEnabled()
     const response = await screen.findByLabelText(/curl execution response/i)
-    expect(executeCurlMock).not.toHaveBeenCalled()
+    expect(startCurlJobMock).not.toHaveBeenCalled()
     expect(response).toHaveTextContent('200 OK')
+    expect(response).toHaveTextContent('GET https://api.example.com/items/1')
     expect(response).toHaveTextContent('Complete within limit')
     expect(response).toHaveTextContent('Set-Cookie')
     expect(response).toHaveTextContent('Redacted')
@@ -182,7 +182,6 @@ describe('App frontend MVP workflow', () => {
 
   it('continues Curl Executor polling after a transient poll error', async () => {
     getCurlJobResultsMock
-      .mockResolvedValueOnce(curlJobSucceeded)
       .mockRejectedValueOnce({
         error_type: 'curl_poll_error',
         title: 'Curl poll failed',
@@ -228,11 +227,11 @@ describe('App frontend MVP workflow', () => {
 
     expect(await screen.findByLabelText(/curl job status/i)).toHaveTextContent('Running')
     expect(startCurlJobMock).toHaveBeenCalledWith({
-      curls: [
-        'curl https://api.example.com/users/1',
-        'curl https://api.example.com/users/2',
-      ],
-      timeout_ms: null,
+      curl: expect.stringContaining('https://api.example.com/items/{value}'),
+      placeholder: '{value}',
+      values: ['1', '2'],
+      timeout_ms: 30_000,
+      max_concurrency: 5,
       follow_redirects: true,
       confirm_large_batch: false,
     })
@@ -246,6 +245,144 @@ describe('App frontend MVP workflow', () => {
     await waitFor(() => {
       expect(writeClipboardTextMock).toHaveBeenCalledWith('[\n  {\n    "ok": true\n  }\n]')
     })
+  })
+
+  it('keeps the curl editor available in batch mode and submits generic placeholder fields', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    const curlEditor = screen.getByRole('textbox', { name: /curl command input/i })
+    fireEvent.change(curlEditor, {
+      target: {
+        value: "curl -H 'X-Sku: {sku}' --data '{\"sku\":\"{sku}\"}' 'https://api.example.com/items/{sku}'",
+      },
+    })
+    fireEvent.change(screen.getByRole('textbox', { name: /batch values/i }), {
+      target: { value: 'ABC-123' },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/raw replacement is exact/i)).toBeInTheDocument()
+      expect(screen.getByText(/ABC-123/i)).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /execute batch/i }))
+
+    expect(startCurlJobMock).toHaveBeenLastCalledWith({
+      curl: "curl -H 'X-Sku: {sku}' --data '{\"sku\":\"{sku}\"}' 'https://api.example.com/items/{sku}'",
+      placeholder: '{sku}',
+      values: ['ABC-123'],
+      timeout_ms: 30_000,
+      max_concurrency: 5,
+      follow_redirects: true,
+      confirm_large_batch: false,
+    })
+  })
+
+  it('keeps comma-containing batch values intact', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: { value: "curl -H 'X-Name: {name}' 'https://api.example.com/search'" },
+    })
+    fireEvent.change(screen.getByRole('textbox', { name: /batch values/i }), {
+      target: { value: 'Doe, Jane' },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /execute batch/i })).toBeEnabled()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /execute batch/i }))
+
+    expect(startCurlJobMock).toHaveBeenLastCalledWith({
+      curl: "curl -H 'X-Name: {name}' 'https://api.example.com/search'",
+      placeholder: '{name}',
+      values: ['Doe, Jane'],
+      timeout_ms: 30_000,
+      max_concurrency: 5,
+      follow_redirects: true,
+      confirm_large_batch: false,
+    })
+  })
+
+  it('groups batch errors by message and affected input values', async () => {
+    startCurlJobMock.mockResolvedValueOnce({
+      job: { ...curlJobStarted.job, total_requests: 2 },
+    })
+    getCurlJobResultsMock.mockResolvedValueOnce({
+      job: {
+        ...curlJobStarted.job,
+        status: 'failed',
+        total_requests: 2,
+        failed_requests: 2,
+        updated_at_utc: '2026-06-03T12:00:01Z',
+      },
+      results: [
+        {
+          index: 0,
+          status: 'failed',
+          input_value: 'alpha',
+          request_preview: curlPreviewOk.parsed,
+          response: null,
+          error: {
+            error_type: 'curl_timeout',
+            title: 'Curl request timed out',
+            status: 504,
+            detail: 'Curl request timed out after 30000 ms',
+            invalid_params: [],
+          },
+        },
+        {
+          index: 1,
+          status: 'failed',
+          input_value: 'beta',
+          request_preview: curlPreviewOk.parsed,
+          response: null,
+          error: {
+            error_type: 'curl_timeout',
+            title: 'Curl request timed out',
+            status: 504,
+            detail: 'Curl request timed out after 30000 ms',
+            invalid_params: [],
+          },
+        },
+      ],
+    })
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    await unlockCurlBatchMode()
+    fireEvent.change(screen.getByRole('textbox', { name: /batch values/i }), {
+      target: { value: 'alpha\nbeta' },
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /execute batch/i })).toBeEnabled()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /execute batch/i }))
+
+    const errors = await screen.findByLabelText(/curl batch errors/i)
+    expect(errors).toHaveTextContent('Curl request timed out after 30000 ms')
+    expect(errors).toHaveTextContent('alpha')
+    expect(errors).toHaveTextContent('beta')
+  })
+
+  it('requires a selected placeholder before enabling batch execution', async () => {
+    renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
+    const batchRadio = screen.getByRole('radio', { name: /batch mode/i })
+    await waitFor(() => {
+      expect(batchRadio).toBeEnabled()
+    })
+    fireEvent.click(batchRadio)
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: { value: "curl 'https://api.example.com/items/1'" },
+    })
+
+    expect(screen.getByText(/insert placeholder/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /execute batch/i })).toBeDisabled()
   })
 
   it('cancels a running Curl Executor job into terminal canceled state', async () => {
@@ -281,28 +418,31 @@ describe('App frontend MVP workflow', () => {
       },
       results: [],
     }
-    startCurlJobMock
-      .mockResolvedValueOnce(curlJobStarted)
-      .mockResolvedValueOnce(batchStarted)
+    startCurlJobMock.mockResolvedValueOnce(batchStarted)
     getCurlJobResultsMock
-      .mockResolvedValueOnce(curlJobSucceeded)
       .mockResolvedValueOnce(batchSucceeded)
     renderApp()
 
     fireEvent.click(screen.getByRole('button', { name: /curl executor/i }))
     await unlockCurlBatchMode()
-    fireEvent.change(screen.getByRole('textbox', { name: /batch curl commands/i }), {
-      target: { value: Array.from({ length: 20 }, (_, index) => `curl https://api.example.com/users/${index + 1}`).join('\n') },
+    fireEvent.change(screen.getByRole('textbox', { name: /batch values/i }), {
+      target: { value: Array.from({ length: 20 }, (_, index) => String(index + 1)).join('\n') },
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^execute batch$/i })).toBeEnabled()
     })
     fireEvent.click(screen.getByRole('button', { name: /^execute batch$/i }))
 
     expect(screen.getByText(/large batch confirmation required/i)).toBeInTheDocument()
-    expect(startCurlJobMock).toHaveBeenCalledTimes(1)
+    expect(startCurlJobMock).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: /confirm and execute batch/i }))
     expect(startCurlJobMock).toHaveBeenLastCalledWith({
-      curls: expect.arrayContaining(['curl https://api.example.com/users/1']),
-      timeout_ms: null,
+      curl: expect.stringContaining('https://api.example.com/items/{value}'),
+      placeholder: '{value}',
+      values: expect.arrayContaining(['1']),
+      timeout_ms: 30_000,
+      max_concurrency: 5,
       follow_redirects: true,
       confirm_large_batch: true,
     })
@@ -314,7 +454,7 @@ describe('App frontend MVP workflow', () => {
   })
 
   it('renders Curl Executor command errors without showing a stale response', async () => {
-    startCurlJobMock.mockRejectedValueOnce({
+    executeCurlMock.mockRejectedValueOnce({
       error_type: 'invalid_request',
       title: 'Invalid request',
       status: 400,
@@ -333,7 +473,7 @@ describe('App frontend MVP workflow', () => {
   })
 
   it('shows Curl Executor execution parse errors and can navigate back to JSON Analyzer', async () => {
-    startCurlJobMock.mockRejectedValueOnce({
+    executeCurlMock.mockRejectedValueOnce({
       error_type: 'invalid_request',
       title: 'Invalid request',
       status: 400,

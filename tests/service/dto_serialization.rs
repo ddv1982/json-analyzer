@@ -270,8 +270,10 @@ fn config_and_curl_parity_dtos_serialize_to_stable_shapes() {
                         "max_timeout_ms": 120000,
                         "max_response_bytes": 1048576,
                         "max_batch_size": 100,
+                        "default_max_concurrency": 5,
+                        "max_concurrency": 10,
                         "large_batch_confirmation_threshold": 20,
-                        "allow_private_networks_by_default": false
+                        "allow_private_networks_by_default": true
                     }
                 },
                 "validation": {
@@ -389,6 +391,28 @@ fn config_and_curl_parity_dtos_serialize_to_stable_shapes() {
         })
     );
 
+    assert_eq!(
+        serde_json::to_value(CurlStartJobRequest {
+            curl: "curl https://api.example.com/items/{id}".to_string(),
+            placeholder: Some("{id}".to_string()),
+            values: vec!["1".to_string(), "2".to_string()],
+            timeout_ms: Some(30_000),
+            max_concurrency: None,
+            follow_redirects: true,
+            confirm_large_batch: false,
+        })
+        .unwrap(),
+        json!({
+            "curl": "curl https://api.example.com/items/{id}",
+            "placeholder": "{id}",
+            "values": ["1", "2"],
+            "timeout_ms": 30000,
+            "max_concurrency": null,
+            "follow_redirects": true,
+            "confirm_large_batch": false
+        })
+    );
+
     let job = CurlJobResultsResponse {
         job: CurlJobSummary {
             job_id: "job-1".to_string(),
@@ -403,6 +427,7 @@ fn config_and_curl_parity_dtos_serialize_to_stable_shapes() {
         results: vec![CurlJobResult {
             index: 0,
             status: CurlJobStatus::Failed,
+            input_value: Some("value-1".to_string()),
             request_preview: Some(parsed),
             response: None,
             error: Some(SerializableProblem {

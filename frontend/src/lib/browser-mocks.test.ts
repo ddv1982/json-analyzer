@@ -359,10 +359,9 @@ describe('browser mock command contracts', () => {
   it('browser mocks expose curl async job polling, batch aggregation, and cancel', async () => {
     const started = await browserMockInvoke<CurlJobResponse>('start_curl_job', {
       request: {
-        curls: [
-          'curl https://api.example.com/users/1',
-          'curl http://localhost/admin',
-        ],
+        curl: 'curl {url}',
+        placeholder: '{url}',
+        values: ['https://api.example.com/users/1', 'http://localhost/admin'],
         timeout_ms: null,
         follow_redirects: true,
         confirm_large_batch: false,
@@ -387,7 +386,9 @@ describe('browser mock command contracts', () => {
 
     const cancelStarted = await browserMockInvoke<CurlJobResponse>('start_curl_job', {
       request: {
-        curls: ['curl https://api.example.com/users/3'],
+        curl: 'curl https://api.example.com/users/3',
+        placeholder: null,
+        values: [],
         timeout_ms: null,
         follow_redirects: true,
         confirm_large_batch: false,

@@ -49,6 +49,8 @@ pub struct CurlLimitsConfig {
     pub max_timeout_ms: u64,
     pub max_response_bytes: usize,
     pub max_batch_size: usize,
+    pub default_max_concurrency: usize,
+    pub max_concurrency: usize,
     pub large_batch_confirmation_threshold: usize,
     pub allow_private_networks_by_default: bool,
 }
@@ -134,8 +136,10 @@ impl Default for CurlLimitsConfig {
             max_timeout_ms: 120_000,
             max_response_bytes: 1_048_576,
             max_batch_size: 100,
+            default_max_concurrency: 5,
+            max_concurrency: 10,
             large_batch_confirmation_threshold: 20,
-            allow_private_networks_by_default: false,
+            allow_private_networks_by_default: true,
         }
     }
 }

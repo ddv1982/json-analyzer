@@ -273,23 +273,21 @@ fn command_helpers_call_managed_core_service_for_success_responses() {
     assert_eq!(execute_error.problem.error_type, "invalid_request");
     assert_eq!(execute_error.problem.invalid_params[0].name, "curl");
 
-    let started_job = start_curl_job_with_service(
+    let start_job_error = start_curl_job_with_service(
         &service,
         CurlStartJobRequest {
-            curls: vec!["wget https://api.example.com".to_string()],
+            curl: "wget https://api.example.com".to_string(),
+            placeholder: None,
+            values: Vec::new(),
+            max_concurrency: None,
             timeout_ms: Some(1_000),
             follow_redirects: false,
             confirm_large_batch: false,
         },
     )
-    .unwrap();
-    let job_results = wait_for_curl_job_results(&service, &started_job.job.job_id);
-    assert_eq!(job_results.job.status, CurlJobStatus::Failed);
-    assert_eq!(job_results.results[0].status, CurlJobStatus::Failed);
-    assert_eq!(
-        job_results.results[0].error.as_ref().unwrap().error_type,
-        "invalid_request"
-    );
+    .unwrap_err();
+    assert_eq!(start_job_error.problem.error_type, "invalid_request");
+    assert_eq!(start_job_error.problem.invalid_params[0].name, "curl");
 
     let config = get_config_with_service(&service).unwrap();
     assert_eq!(

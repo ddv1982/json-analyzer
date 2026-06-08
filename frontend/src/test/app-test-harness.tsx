@@ -17,6 +17,7 @@ import {
   formatJson,
   getConfig,
   getCurlJobResults,
+  parseCurl,
   startCurlJob,
   validateJson,
 } from '../lib/commands'
@@ -70,6 +71,7 @@ vi.mock('../lib/commands', async (importOriginal) => {
     analyzeAdvancedFieldDuplicates: vi.fn(),
     analyzeCompositeDuplicates: vi.fn(),
     executeCurl: vi.fn(),
+    parseCurl: vi.fn(),
     startCurlJob: vi.fn(),
     getCurlJobResults: vi.fn(),
     cancelCurlJob: vi.fn(),
@@ -90,6 +92,7 @@ export const analyzeValuesExplorerMock = vi.mocked(analyzeValuesExplorer)
 export const analyzeAdvancedFieldDuplicatesMock = vi.mocked(analyzeAdvancedFieldDuplicates)
 export const analyzeCompositeDuplicatesMock = vi.mocked(analyzeCompositeDuplicates)
 export const executeCurlMock = vi.mocked(executeCurl)
+export const parseCurlMock = vi.mocked(parseCurl)
 export const startCurlJobMock = vi.mocked(startCurlJob)
 export const getCurlJobResultsMock = vi.mocked(getCurlJobResults)
 export const cancelCurlJobMock = vi.mocked(cancelCurlJob)
@@ -141,8 +144,10 @@ export const appConfig: ConfigResponse = {
         max_timeout_ms: 120_000,
         max_response_bytes: 1_048_576,
         max_batch_size: 100,
+        default_max_concurrency: 5,
+        max_concurrency: 10,
         large_batch_confirmation_threshold: 20,
-        allow_private_networks_by_default: false,
+        allow_private_networks_by_default: true,
       },
     },
     validation: { schema_json: null, schema_path: null, enforcement: 'disabled' },
@@ -164,16 +169,16 @@ export const appConfig: ConfigResponse = {
 
 export const curlPreviewOk: CurlParseResponse = {
   parsed: {
-    method: 'POST',
-    url: 'https://api.example.com/users',
+    method: 'GET',
+    url: 'https://api.example.com/items/1',
     headers: [
       { name: 'Authorization', value: 'Bearer ***', redacted: true },
-      { name: 'Content-Type', value: 'application/json', redacted: false },
+      { name: 'Accept', value: 'application/json', redacted: false },
     ],
-    body: '{"name":"Alice"}',
-    body_kind: 'json_string',
+    body: null,
+    body_kind: null,
     auth: { bearer_token_present: true, scheme: 'Bearer' },
-    supported_options: ['-X', '-H', '--data'],
+    supported_options: ['-X', '-H'],
     warnings: [],
   },
 }
@@ -223,6 +228,7 @@ export const curlJobSucceeded: CurlJobResultsResponse = {
     {
       index: 0,
       status: 'succeeded',
+      input_value: '1',
       request_preview: curlPreviewOk.parsed,
       response: curlExecutionOk.response,
       error: null,
@@ -478,6 +484,7 @@ export function setupDefaultAppMocks() {
   analyzeValuesExplorerMock.mockReset()
   analyzeAdvancedFieldDuplicatesMock.mockReset()
   analyzeCompositeDuplicatesMock.mockReset()
+  parseCurlMock.mockReset()
   executeCurlMock.mockReset()
   startCurlJobMock.mockReset()
   getCurlJobResultsMock.mockReset()
@@ -495,6 +502,7 @@ export function setupDefaultAppMocks() {
   )
   analyzeAdvancedFieldDuplicatesMock.mockImplementation((request) => Promise.resolve(advancedFieldDuplicateResponse(request)))
   analyzeCompositeDuplicatesMock.mockImplementation((request) => Promise.resolve(compositeDuplicateResponse(request)))
+  parseCurlMock.mockResolvedValue(curlPreviewOk)
   executeCurlMock.mockResolvedValue(curlExecutionOk)
   startCurlJobMock.mockResolvedValue(curlJobStarted)
   getCurlJobResultsMock.mockResolvedValue(curlJobSucceeded)
@@ -506,14 +514,20 @@ export function renderApp() {
   return render(<App queryClient={createAppQueryClient()} />)
 }
 
-export async function unlockCurlBatchMode() {
-  fireEvent.click(screen.getByRole('button', { name: /^execute$/i }))
-  await screen.findByLabelText(/curl execution response/i)
+export async function unlockCurlBatchMode(options: { prepareBatchCurl?: boolean } = {}) {
   const batchRadio = screen.getByRole('radio', { name: /batch mode/i })
   await waitFor(() => {
     expect(batchRadio).toBeEnabled()
   })
   fireEvent.click(batchRadio)
+  if (options.prepareBatchCurl ?? true) {
+    fireEvent.change(screen.getByRole('textbox', { name: /curl command input/i }), {
+      target: { value: "curl -X GET 'https://api.example.com/items/{value}' -H 'Accept: application/json'" },
+    })
+  }
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: /execute batch/i })).toBeEnabled()
+  })
 }
 
 export function deferred<T>() {

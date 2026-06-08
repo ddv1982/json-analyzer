@@ -291,6 +291,8 @@ export interface CurlLimitsConfig {
   max_timeout_ms: number
   max_response_bytes: number
   max_batch_size: number
+  default_max_concurrency: number
+  max_concurrency: number
   large_batch_confirmation_threshold: number
   allow_private_networks_by_default: boolean
 }
@@ -396,8 +398,11 @@ export interface CurlHttpResponse {
 }
 
 export interface CurlStartJobRequest {
-  curls: string[]
+  curl: string
+  placeholder?: string | null
+  values?: string[]
   timeout_ms?: number | null
+  max_concurrency?: number | null
   follow_redirects: boolean
   confirm_large_batch: boolean
 }
@@ -431,6 +436,7 @@ export type CurlJobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'can
 export interface CurlJobResult {
   index: number
   status: CurlJobStatus
+  input_value?: string | null
   request_preview?: ParsedCurlPreview | null
   response?: CurlHttpResponse | null
   error?: SerializableProblem | null

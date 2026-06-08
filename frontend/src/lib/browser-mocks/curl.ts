@@ -227,18 +227,27 @@ export function mockExecuteCurl(request: CurlExecuteRequest): CurlExecuteRespons
 
 export function mockStartCurlJob(request: CurlStartJobRequest): CurlJobResponse {
   const config = mockConfig()
-  if (request.curls.length === 0) {
+  const { curls, inputValues } = normalizeMockStartJobRequest(request)
+  if (curls.length === 0) {
     throw problem('invalid_request', 'Invalid request', 'curl job must include at least one request')
   }
-  if (request.curls.length > config.limits.curl.max_batch_size) {
+  if (curls.length > config.limits.curl.max_batch_size) {
     throw problem('invalid_request', 'Invalid request', `curl batch cannot include more than ${config.limits.curl.max_batch_size} requests`)
   }
+  curls.forEach((curl, index) => {
+    try {
+      mockParseCurl({ curl })
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'generated curl is invalid'
+      throw problem('invalid_request', 'Invalid request', `generated curl ${index + 1} is invalid: ${detail}`)
+    }
+  })
   if (
-    request.curls.length > 1 &&
-    request.curls.length >= config.limits.curl.large_batch_confirmation_threshold &&
+    curls.length > 1 &&
+    curls.length >= config.limits.curl.large_batch_confirmation_threshold &&
     !request.confirm_large_batch
   ) {
-    throw problem('invalid_request', 'Invalid request', `curl batch of ${request.curls.length} requests requires confirmation`)
+    throw problem('invalid_request', 'Invalid request', `curl batch of ${curls.length} requests requires confirmation`)
   }
 
   const jobId = `browser-curl-job-${++mockCurlJobSequence}`
@@ -247,16 +256,17 @@ export function mockStartCurlJob(request: CurlStartJobRequest): CurlJobResponse 
     job: {
       job_id: jobId,
       status: 'running',
-      total_requests: request.curls.length,
+      total_requests: curls.length,
       completed_requests: 0,
       failed_requests: 0,
       canceled_requests: 0,
       created_at_utc: now,
       updated_at_utc: now,
     },
-    results: request.curls.map((curl, index) => ({
+    results: curls.map((curl, index) => ({
       index,
       status: index === 0 ? 'running' : 'queued',
+      input_value: inputValues[index] ?? null,
       request_preview: safeMockCurlPreview(curl),
       response: null,
       error: null,
@@ -264,6 +274,34 @@ export function mockStartCurlJob(request: CurlStartJobRequest): CurlJobResponse 
   }
   mockCurlJobs.set(jobId, job)
   return { job: job.job }
+}
+
+function normalizeMockStartJobRequest(request: CurlStartJobRequest): { curls: string[]; inputValues: Array<string | null> } {
+  const curl = request.curl.trim()
+  const placeholder = request.placeholder?.trim()
+  const values = (request.values ?? []).map((value) => value.trim()).filter(Boolean)
+  if (!curl) {
+    throw problem('invalid_request', 'Invalid request', 'curl command cannot be empty')
+  }
+  if (!placeholder && values.length === 0) {
+    return {
+      curls: [curl],
+      inputValues: [null],
+    }
+  }
+  if (!placeholder) {
+    throw problem('invalid_request', 'Invalid request', 'batch placeholder is required when values are provided')
+  }
+  if (values.length === 0) {
+    throw problem('invalid_request', 'Invalid request', 'batch values cannot be empty when a placeholder is selected')
+  }
+  if (!curl.includes(placeholder)) {
+    throw problem('invalid_request', 'Invalid request', `curl command must include the selected placeholder ${placeholder}`)
+  }
+  return {
+    curls: values.map((value) => curl.split(placeholder).join(value)),
+    inputValues: values,
+  }
 }
 
 export function mockGetCurlJobResults(request: CurlJobRequest): CurlJobResultsResponse {

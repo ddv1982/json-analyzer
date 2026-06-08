@@ -35,8 +35,10 @@ struct JobRecord {
 
 struct JobWorker {
     job_id: String,
-    curls: Vec<String>,
+    generated_curls: Vec<String>,
+    generated_input_values: Vec<Option<String>>,
     timeout_ms: Option<u64>,
+    max_concurrency: usize,
     follow_redirects: bool,
     limits: CurlLimitsConfig,
     client: Arc<dyn CurlHttpClient>,
@@ -46,6 +48,15 @@ struct JobWorker {
 struct JobWorkerLifecycle {
     manager: CurlJobManager,
     job_id: String,
+}
+
+struct PreparedCurlJobRequest {
+    generated_curls: Vec<String>,
+    generated_input_values: Vec<Option<String>>,
+    timeout_ms: Option<u64>,
+    max_concurrency: usize,
+    follow_redirects: bool,
+    confirm_large_batch: bool,
 }
 
 impl Drop for JobWorkerLifecycle {
@@ -74,12 +85,14 @@ impl CurlJobManager {
         limits: CurlLimitsConfig,
         client: Arc<dyn CurlHttpClient>,
     ) -> Result<CurlJobResponse, AppError> {
-        validate_start_job_request(&request, &limits)?;
+        let prepared = prepare_start_job_request(request, &limits)?;
 
-        let curls = request.curls;
-        let timeout_ms = request.timeout_ms;
-        let follow_redirects = request.follow_redirects;
-        let total_requests = curls.len();
+        let generated_curls = prepared.generated_curls;
+        let generated_input_values = prepared.generated_input_values;
+        let timeout_ms = prepared.timeout_ms;
+        let max_concurrency = prepared.max_concurrency;
+        let follow_redirects = prepared.follow_redirects;
+        let total_requests = generated_curls.len();
         let now = now_utc_string();
         let job_id = self.next_job_id();
         let cancel_requested = Arc::new(AtomicBool::new(false));
@@ -97,6 +110,7 @@ impl CurlJobManager {
             .map(|index| CurlJobResult {
                 index,
                 status: CurlJobStatus::Queued,
+                input_value: generated_input_values[index].clone(),
                 request_preview: None,
                 response: None,
                 error: None,
@@ -109,7 +123,7 @@ impl CurlJobManager {
             let active_jobs = jobs.values().filter(|record| record.worker_active).count();
             if active_jobs >= MAX_ACTIVE_JOBS {
                 return Err(AppError::invalid_request(
-                    "curls",
+                    "curl_job",
                     format!("too many active curl jobs (max {MAX_ACTIVE_JOBS})"),
                 ));
             }
@@ -127,8 +141,10 @@ impl CurlJobManager {
         let manager = self.clone();
         let worker = JobWorker {
             job_id: job_id.clone(),
-            curls,
+            generated_curls,
+            generated_input_values,
             timeout_ms,
+            max_concurrency,
             follow_redirects,
             limits,
             client,
@@ -177,7 +193,7 @@ impl CurlJobManager {
     }
 
     fn run_job(&self, worker: JobWorker) {
-        let _worker_lifecycle = JobWorkerLifecycle {
+        let worker_lifecycle = JobWorkerLifecycle {
             manager: self.clone(),
             job_id: worker.job_id.clone(),
         };
@@ -186,7 +202,18 @@ impl CurlJobManager {
             return;
         }
 
-        for (index, curl) in worker.curls.into_iter().enumerate() {
+        if worker.max_concurrency <= 1 || worker.generated_curls.len() <= 1 {
+            self.run_job_sequential(worker);
+        } else {
+            self.run_job_concurrent(worker);
+        }
+
+        self.finish_job(&worker_lifecycle.job_id);
+    }
+
+    fn run_job_sequential(&self, worker: JobWorker) {
+        for (index, curl) in worker.generated_curls.iter().enumerate() {
+            let input_value = worker.generated_input_values.get(index).cloned().flatten();
             if worker.cancel_requested.load(Ordering::SeqCst) {
                 self.cancel_remaining(&worker.job_id);
                 return;
@@ -198,7 +225,7 @@ impl CurlJobManager {
 
             let result = match execute_curl_request_with_client(
                 CurlExecuteRequest {
-                    curl: curl.clone(),
+                    curl: curl.to_string(),
                     timeout_ms: worker.timeout_ms,
                     follow_redirects: worker.follow_redirects,
                 },
@@ -208,6 +235,7 @@ impl CurlJobManager {
                 Ok(response) => CurlJobResult {
                     index,
                     status: CurlJobStatus::Succeeded,
+                    input_value,
                     request_preview: Some(response.request_preview),
                     response: response.response,
                     error: None,
@@ -215,6 +243,7 @@ impl CurlJobManager {
                 Err(error) => CurlJobResult {
                     index,
                     status: CurlJobStatus::Failed,
+                    input_value,
                     request_preview: redacted_preview(&curl),
                     response: None,
                     error: Some(to_serializable_problem(error)),
@@ -230,8 +259,81 @@ impl CurlJobManager {
                 return;
             }
         }
+    }
 
-        self.finish_job(&worker.job_id);
+    fn run_job_concurrent(&self, worker: JobWorker) {
+        let next_index = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let worker_count = worker.max_concurrency.min(worker.generated_curls.len());
+
+        std::thread::scope(|scope| {
+            for _ in 0..worker_count {
+                let next_index = next_index.clone();
+                let cancel_requested = worker.cancel_requested.clone();
+                let client = worker.client.clone();
+                let manager = self.clone();
+                let job_id = worker.job_id.clone();
+                let generated_curls = &worker.generated_curls;
+                let generated_input_values = &worker.generated_input_values;
+                let limits = &worker.limits;
+                let timeout_ms = worker.timeout_ms;
+                let follow_redirects = worker.follow_redirects;
+
+                scope.spawn(move || {
+                    loop {
+                        if cancel_requested.load(Ordering::SeqCst) {
+                            manager.cancel_remaining(&job_id);
+                            return;
+                        }
+
+                        let index = next_index.fetch_add(1, Ordering::SeqCst);
+                        let Some(curl) = generated_curls.get(index) else {
+                            return;
+                        };
+
+                        if !manager.mark_item_running(&job_id, index) {
+                            return;
+                        }
+
+                        let input_value = generated_input_values.get(index).cloned().flatten();
+                        let result = match execute_curl_request_with_client(
+                            CurlExecuteRequest {
+                                curl: curl.to_string(),
+                                timeout_ms,
+                                follow_redirects,
+                            },
+                            limits,
+                            client.as_ref(),
+                        ) {
+                            Ok(response) => CurlJobResult {
+                                index,
+                                status: CurlJobStatus::Succeeded,
+                                input_value,
+                                request_preview: Some(response.request_preview),
+                                response: response.response,
+                                error: None,
+                            },
+                            Err(error) => CurlJobResult {
+                                index,
+                                status: CurlJobStatus::Failed,
+                                input_value,
+                                request_preview: redacted_preview(curl),
+                                response: None,
+                                error: Some(to_serializable_problem(error)),
+                            },
+                        };
+
+                        if cancel_requested.load(Ordering::SeqCst) {
+                            manager.cancel_remaining(&job_id);
+                            return;
+                        }
+
+                        if !manager.complete_item(&job_id, result) {
+                            return;
+                        }
+                    }
+                });
+            }
+        });
     }
 
     fn next_job_id(&self) -> String {
@@ -386,6 +488,7 @@ fn estimate_result_bytes(result: &CurlJobResult) -> usize {
     estimate_preview_bytes(result.request_preview.as_ref())
         .saturating_add(estimate_response_bytes(result.response.as_ref()))
         .saturating_add(estimate_error_bytes(result.error.as_ref()))
+        .saturating_add(result.input_value.as_ref().map_or(0, String::len))
 }
 
 fn estimate_preview_bytes(preview: Option<&ParsedCurlPreview>) -> usize {
@@ -432,41 +535,154 @@ fn estimate_error_bytes(error: Option<&SerializableProblem>) -> usize {
         })
 }
 
-fn validate_start_job_request(
-    request: &CurlStartJobRequest,
+fn prepare_start_job_request(
+    request: CurlStartJobRequest,
     limits: &CurlLimitsConfig,
-) -> Result<(), AppError> {
+) -> Result<PreparedCurlJobRequest, AppError> {
     if !limits.enabled {
         return Err(AppError::unsupported_config(
             "limits.curl.enabled",
             "curl execution is disabled by configuration",
         ));
     }
-    if request.curls.is_empty() {
+
+    let (generated_curls, generated_input_values) = expand_start_job_request(&request, limits)?;
+    validate_prepared_curls(&generated_curls)?;
+
+    let prepared = PreparedCurlJobRequest {
+        generated_curls,
+        generated_input_values,
+        timeout_ms: request.timeout_ms,
+        max_concurrency: normalize_max_concurrency(request.max_concurrency, limits)?,
+        follow_redirects: request.follow_redirects,
+        confirm_large_batch: request.confirm_large_batch,
+    };
+    validate_start_job_request(&prepared, limits)?;
+    Ok(prepared)
+}
+
+fn expand_start_job_request(
+    request: &CurlStartJobRequest,
+    limits: &CurlLimitsConfig,
+) -> Result<(Vec<String>, Vec<Option<String>>), AppError> {
+    let curl = request.curl.trim();
+    if curl.is_empty() {
         return Err(AppError::invalid_request(
-            "curls",
-            "curl job must include at least one request",
+            "curl",
+            "curl command cannot be empty",
         ));
     }
-    if request.curls.len() > limits.max_batch_size {
+
+    let values = normalize_batch_values(&request.values);
+    let placeholder = request
+        .placeholder
+        .as_ref()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty());
+
+    match (placeholder, values.is_empty()) {
+        (None, true) => Ok((vec![curl.to_string()], vec![None])),
+        (None, false) => Err(AppError::invalid_request(
+            "placeholder",
+            "batch placeholder is required when values are provided",
+        )),
+        (Some(_placeholder), true) => Err(AppError::invalid_request(
+            "values",
+            "batch values cannot be empty when a placeholder is selected",
+        )),
+        (Some(placeholder), false) => {
+            if !curl.contains(placeholder) {
+                return Err(AppError::invalid_request(
+                    "placeholder",
+                    format!("curl command must include the selected placeholder {placeholder}"),
+                ));
+            }
+            if values.len() > limits.max_batch_size {
+                return Err(AppError::invalid_request(
+                    "values",
+                    format!(
+                        "curl batch cannot include more than {} requests",
+                        limits.max_batch_size
+                    ),
+                ));
+            }
+            let generated_curls = values
+                .iter()
+                .map(|value| curl.replace(placeholder, value))
+                .collect::<Vec<_>>();
+            let generated_input_values = values.into_iter().map(Some).collect::<Vec<_>>();
+            Ok((generated_curls, generated_input_values))
+        }
+    }
+}
+
+fn normalize_batch_values(values: &[String]) -> Vec<String> {
+    values
+        .iter()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .collect()
+}
+
+fn validate_prepared_curls(curls: &[String]) -> Result<(), AppError> {
+    for (index, curl) in curls.iter().enumerate() {
+        parse_curl(curl).map_err(|error| {
+            AppError::invalid_request(
+                "curl",
+                format!(
+                    "generated curl {} is invalid: {}",
+                    index + 1,
+                    error.problem.detail
+                ),
+            )
+        })?;
+    }
+    Ok(())
+}
+
+fn normalize_max_concurrency(
+    max_concurrency: Option<usize>,
+    limits: &CurlLimitsConfig,
+) -> Result<usize, AppError> {
+    let max_concurrency = if let Some(max_concurrency) = max_concurrency {
+        max_concurrency
+    } else if limits.max_concurrency == 0 {
+        1
+    } else {
+        limits.default_max_concurrency.clamp(1, limits.max_concurrency)
+    };
+    if max_concurrency == 0 {
         return Err(AppError::invalid_request(
-            "curls",
+            "max_concurrency",
+            "curl batch concurrency must be at least 1",
+        ));
+    }
+    if max_concurrency > limits.max_concurrency {
+        return Err(AppError::invalid_request(
+            "max_concurrency",
             format!(
-                "curl batch cannot include more than {} requests",
-                limits.max_batch_size
+                "curl batch concurrency cannot exceed {}",
+                limits.max_concurrency
             ),
         ));
     }
-    if request.curls.len() > 1
+    Ok(max_concurrency)
+}
+
+fn validate_start_job_request(
+    request: &PreparedCurlJobRequest,
+    limits: &CurlLimitsConfig,
+) -> Result<(), AppError> {
+    if request.generated_curls.len() > 1
         && limits.large_batch_confirmation_threshold > 0
-        && request.curls.len() >= limits.large_batch_confirmation_threshold
+        && request.generated_curls.len() >= limits.large_batch_confirmation_threshold
         && !request.confirm_large_batch
     {
         return Err(AppError::invalid_request(
             "confirm_large_batch",
             format!(
                 "curl batch of {} requests requires confirmation",
-                request.curls.len()
+                request.generated_curls.len()
             ),
         ));
     }
@@ -605,6 +821,7 @@ mod retention_tests {
             results: vec![CurlJobResult {
                 index: 0,
                 status: CurlJobStatus::Succeeded,
+                input_value: None,
                 request_preview: None,
                 response: Some(CurlHttpResponse {
                     status: 200,

@@ -118,7 +118,10 @@ fn disabled_curl_limit_blocks_service_curl_boundary_methods() {
 
     let start_error = service
         .start_curl_job(CurlStartJobRequest {
-            curls: vec!["curl http://93.184.216.34/status".to_string()],
+            curl: "curl http://93.184.216.34/status".to_string(),
+            placeholder: None,
+            values: Vec::new(),
+            max_concurrency: None,
             timeout_ms: Some(1_000),
             follow_redirects: false,
             confirm_large_batch: false,
@@ -322,7 +325,10 @@ fn curl_execution_feature_flags_block_direct_service_execution_paths() {
 
     let single_job_error = service
         .start_curl_job(CurlStartJobRequest {
-            curls: vec!["curl http://93.184.216.34/status".to_string()],
+            curl: "curl http://93.184.216.34/status".to_string(),
+            placeholder: None,
+            values: Vec::new(),
+            max_concurrency: None,
             timeout_ms: Some(50),
             follow_redirects: false,
             confirm_large_batch: false,
@@ -335,6 +341,68 @@ fn curl_execution_feature_flags_block_direct_service_execution_paths() {
 
     let service = JsonAnalyzerService::new(AppConfig {
         features: FeatureFlagsConfig {
+            curl_batch: false,
+            ..FeatureFlagsConfig::default()
+        },
+        ..AppConfig::default()
+    });
+    let batch_job_error = service
+        .start_curl_job(CurlStartJobRequest {
+            curl: "curl http://93.184.216.34/items/{id}".to_string(),
+            placeholder: Some("{id}".to_string()),
+            values: vec!["one".to_string(), "two".to_string()],
+            max_concurrency: None,
+            timeout_ms: Some(50),
+            follow_redirects: false,
+            confirm_large_batch: false,
+        })
+        .unwrap_err();
+    assert_eq!(
+        batch_job_error.problem.invalid_params[0].name,
+        "features.curl_batch"
+    );
+    let one_value_batch_error = service
+        .start_curl_job(CurlStartJobRequest {
+            curl: "curl http://93.184.216.34/items/{id}".to_string(),
+            placeholder: Some("{id}".to_string()),
+            values: vec!["one".to_string()],
+            max_concurrency: None,
+            timeout_ms: Some(50),
+            follow_redirects: false,
+            confirm_large_batch: false,
+        })
+        .unwrap_err();
+    assert_eq!(
+        one_value_batch_error.problem.invalid_params[0].name,
+        "features.curl_batch"
+    );
+
+    let service = JsonAnalyzerService::new(AppConfig {
+        features: FeatureFlagsConfig {
+            curl_single_request_execution: false,
+            curl_batch: true,
+            ..FeatureFlagsConfig::default()
+        },
+        ..AppConfig::default()
+    });
+    let one_value_batch_validation_error = service
+        .start_curl_job(CurlStartJobRequest {
+            curl: "wget http://93.184.216.34/items/{id}".to_string(),
+            placeholder: Some("{id}".to_string()),
+            values: vec!["one".to_string()],
+            max_concurrency: None,
+            timeout_ms: Some(50),
+            follow_redirects: false,
+            confirm_large_batch: false,
+        })
+        .unwrap_err();
+    assert_eq!(
+        one_value_batch_validation_error.problem.invalid_params[0].name,
+        "curl"
+    );
+
+    let service = JsonAnalyzerService::new(AppConfig {
+        features: FeatureFlagsConfig {
             curl_executor: false,
             ..FeatureFlagsConfig::default()
         },
@@ -342,7 +410,10 @@ fn curl_execution_feature_flags_block_direct_service_execution_paths() {
     });
     let job_error = service
         .start_curl_job(CurlStartJobRequest {
-            curls: vec!["curl http://93.184.216.34/status".to_string()],
+            curl: "curl http://93.184.216.34/status".to_string(),
+            placeholder: None,
+            values: Vec::new(),
+            max_concurrency: None,
             timeout_ms: Some(50),
             follow_redirects: false,
             confirm_large_batch: false,

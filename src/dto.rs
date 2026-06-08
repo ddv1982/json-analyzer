@@ -467,8 +467,14 @@ pub struct CurlHttpResponse {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CurlStartJobRequest {
-    pub curls: Vec<String>,
+    pub curl: String,
+    #[serde(default)]
+    pub placeholder: Option<String>,
+    #[serde(default)]
+    pub values: Vec<String>,
     pub timeout_ms: Option<u64>,
+    #[serde(default)]
+    pub max_concurrency: Option<usize>,
     pub follow_redirects: bool,
     pub confirm_large_batch: bool,
 }
@@ -515,6 +521,8 @@ pub struct CurlJobRequest {
 pub struct CurlJobResult {
     pub index: usize,
     pub status: CurlJobStatus,
+    #[serde(default)]
+    pub input_value: Option<String>,
     pub request_preview: Option<ParsedCurlPreview>,
     pub response: Option<CurlHttpResponse>,
     pub error: Option<SerializableProblem>,
