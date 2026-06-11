@@ -16,6 +16,11 @@
     grid-template-columns: 1fr;
   }
 
+  /* The stacked header is tall; pinning it would eat most of the viewport. */
+  .app-header {
+    position: static;
+  }
+
   .header-aside {
     justify-items: start;
   }

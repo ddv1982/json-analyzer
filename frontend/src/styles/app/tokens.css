@@ -2,8 +2,7 @@
   color-scheme: light;
   color: var(--color-text);
   background: var(--color-bg);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
 
   /* Design tokens: use --space-* for raw scale, --gap-* for relationships,
      --inset-* for padding, and --control-height-* for interactive targets. */
@@ -30,36 +29,45 @@
   --control-height-sm: 2rem;
   --control-height-md: 2.25rem;
   --control-height-lg: 2.5rem;
-  --radius-control: 6px;
-  --radius-surface: 10px;
+  --radius-control: 7px;
+  --radius-segment: 9px;
+  --radius-surface: 12px;
   --radius-pill: 999px;
   --table-cell-inset: 0.375rem var(--space-2);
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, Helvetica, Arial,
+    sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
 
   /* sRGB fallbacks for older WebView engines without OKLCH/color-mix support. */
   --neutral-0: #ffffff;
-  --neutral-25: #fcfcfd;
-  --neutral-50: #fafafd;
-  --neutral-100: #f4f4f6;
-  --neutral-150: #ececf0;
-  --neutral-200: #dedee5;
-  --neutral-300: #c8c8d2;
-  --neutral-400: #9f9faa;
-  --neutral-500: #747481;
-  --neutral-600: #686876;
-  --neutral-700: #50505f;
-  --neutral-800: #383846;
-  --neutral-900: #282835;
-  --neutral-950: #1a1a25;
+  --neutral-25: #fbfbfd;
+  --neutral-50: #f9f9fb;
+  --neutral-100: #f5f5f7;
+  --neutral-150: #ececee;
+  --neutral-200: #e3e3e6;
+  --neutral-300: #d1d1d6;
+  --neutral-400: #aeaeb2;
+  --neutral-500: #8e8e93;
+  --neutral-600: #6e6e73;
+  --neutral-700: #515154;
+  --neutral-800: #3a3a3c;
+  --neutral-900: #1d1d1f;
+  --neutral-950: #141416;
 
-  --accent: #5b42d6;
-  --seed-success: #2f9b63;
-  --seed-warning: #b88316;
-  --seed-danger: #d34732;
-  --seed-info: #2f73d6;
+  --accent: #007aff;
+  --seed-success: #34c759;
+  --seed-warning: #ff9500;
+  --seed-danger: #ff3b30;
+  --seed-info: #007aff;
 
-  --shadow-raised: 0 1px 2px rgba(26, 26, 37, 0.08);
-  --shadow-surface: 0 1px 2px rgba(26, 26, 37, 0.06), 0 10px 24px rgba(26, 26, 37, 0.07);
+  --shadow-raised: 0 0 0 0.5px rgba(0, 0, 0, 0.05), 0 1px 2.5px rgba(0, 0, 0, 0.08);
+  --shadow-surface:
+    0 0 0 0.5px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-overlay:
+    0 0 0 0.5px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(0, 0, 0, 0.08),
+    0 16px 40px rgba(0, 0, 0, 0.14);
 
   /* === Semantic tokens === */
   --color-bg: var(--neutral-100);
@@ -76,16 +84,21 @@
   --color-text-soft: var(--neutral-700);
   --color-label: var(--neutral-600);
   --color-accent: var(--accent);
-  --color-accent-strong: #4e37b9;
-  --color-accent-soft: #efecfb;
-  --color-on-accent: var(--neutral-0);
+  --color-accent-strong: #0066d6;
+  --color-accent-soft: #e5f1ff;
+  --color-on-accent: #ffffff;
+  --color-action-bg: #0066d6;
+  --color-action-hover: #0057b8;
+  --color-on-action: #ffffff;
   --color-control-bg: var(--neutral-0);
   --color-control-text: var(--neutral-900);
-  --color-button-bg: #efecfb;
-  --color-button-hover: #e3ddf8;
-  --color-button-text: #402e96;
-  --color-button-active-bg: var(--neutral-900);
-  --color-button-active-text: var(--neutral-0);
+  --color-button-bg: var(--neutral-0);
+  --color-button-hover: #f2f2f4;
+  --color-button-text: var(--neutral-900);
+  --color-header-backdrop: rgba(245, 245, 247, 0.72);
+  --color-popover-backdrop: rgba(255, 255, 255, 0.78);
+  --color-segment-track: rgba(120, 120, 128, 0.12);
+  --color-segment-active: #ffffff;
   --color-code-bg: var(--neutral-100);
   --color-code-text: var(--neutral-800);
   --color-editor-bg: var(--neutral-25);
@@ -93,57 +106,64 @@
   --color-editor-border: var(--neutral-300);
   --color-table-header-bg: var(--neutral-50);
   --color-table-border: var(--neutral-150);
-  --color-success-bg: #e6f4ed;
-  --color-success-border: #98d0b3;
-  --color-success-text: #206b44;
-  --color-warning-bg: #f8efd9;
-  --color-warning-border: #ddc18a;
-  --color-warning-text: #64470c;
-  --color-danger-bg: #faeae7;
-  --color-danger-border: #e7a398;
-  --color-danger-text: #943224;
+  --color-success-bg: #e9f8ee;
+  --color-success-border: #a9e4ba;
+  --color-success-text: #1d7a3c;
+  --color-warning-bg: #fff3e0;
+  --color-warning-border: #f3cc90;
+  --color-warning-text: #8a5300;
+  --color-danger-bg: #feeceb;
+  --color-danger-border: #f5aba6;
+  --color-danger-text: #c0271c;
   /* error family consolidated onto danger */
   --color-error-bg: var(--color-danger-bg);
   --color-error-border: var(--color-danger-border);
   --color-error-text: var(--color-danger-text);
-  --color-info-bg: #e8f0fb;
-  --color-info-border: #a1bee9;
-  --color-info-text: #215095;
+  --color-info-bg: #e5f1ff;
+  --color-info-border: #a3ccfa;
+  --color-info-text: #0b61c4;
   --color-loading-bg: var(--color-info-bg);
   --color-loading-text: var(--color-info-text);
   --shadow-panel: var(--shadow-surface);
-  --shadow-focus: 0 0 0 3px rgba(91, 66, 214, 0.2);
+  --shadow-focus: 0 0 0 3.5px rgba(0, 122, 255, 0.25);
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --neutral-0: #2d2d35;
-  --neutral-25: #2a2a32;
-  --neutral-50: #26262e;
-  --neutral-100: #222229;
-  --neutral-150: #353540;
-  --neutral-200: #42424e;
-  --neutral-300: #575765;
-  --neutral-400: #717180;
-  --neutral-500: #9494a0;
-  --neutral-600: #aaaab4;
-  --neutral-700: #c0c0c9;
-  --neutral-800: #d1d1d8;
-  --neutral-900: #e2e2e8;
-  --neutral-950: #f2f2f5;
+  --neutral-0: #2c2c2e;
+  --neutral-25: #29292b;
+  --neutral-50: #262628;
+  --neutral-100: #1c1c1e;
+  --neutral-150: #3a3a3c;
+  --neutral-200: #48484a;
+  --neutral-300: #58585a;
+  --neutral-400: #6e6e70;
+  --neutral-500: #8e8e93;
+  --neutral-600: #a1a1a6;
+  --neutral-700: #bfbfc4;
+  --neutral-800: #d1d1d6;
+  --neutral-900: #e8e8ed;
+  --neutral-950: #f5f5f7;
 
-  --accent: #9a85e8;
-  --seed-success: #62c78f;
-  --seed-warning: #d9b24b;
-  --seed-danger: #ed7868;
-  --seed-info: #75a7ea;
+  --accent: #0a84ff;
+  --seed-success: #30d158;
+  --seed-warning: #ff9f0a;
+  --seed-danger: #ff453a;
+  --seed-info: #0a84ff;
 
-  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-surface: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 24px rgba(0, 0, 0, 0.28);
+  /* Drop shadows read as nothing on near-black; the inset top hairline
+     supplies the macOS "edge light" instead. */
+  --shadow-raised: inset 0 0.5px 0 rgba(255, 255, 255, 0.06), 0 1px 2.5px rgba(0, 0, 0, 0.45);
+  --shadow-surface:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-overlay:
+    0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 8px 20px rgba(0, 0, 0, 0.5),
+    0 24px 60px rgba(0, 0, 0, 0.45);
 
   --color-bg: var(--neutral-100);
-  --color-bg-gradient: linear-gradient(180deg, var(--neutral-0) 0%, var(--neutral-100) 100%);
+  --color-bg-gradient: linear-gradient(180deg, #202022 0%, var(--neutral-100) 100%);
   --color-surface: var(--neutral-0);
   --color-surface-raised: var(--neutral-150);
   --color-surface-subtle: var(--neutral-50);
@@ -156,16 +176,21 @@
   --color-text-soft: var(--neutral-700);
   --color-label: var(--neutral-600);
   --color-accent: var(--accent);
-  --color-accent-strong: #aa98ec;
-  --color-accent-soft: #393247;
-  --color-on-accent: var(--neutral-100);
+  --color-accent-strong: #3395ff;
+  --color-accent-soft: #16335a;
+  --color-on-accent: #ffffff;
+  --color-action-bg: #0066d6;
+  --color-action-hover: #0057b8;
+  --color-on-action: #ffffff;
   --color-control-bg: var(--neutral-50);
   --color-control-text: var(--neutral-900);
-  --color-button-bg: #393247;
-  --color-button-hover: #453b59;
-  --color-button-text: #b5a7ee;
-  --color-button-active-bg: var(--neutral-900);
-  --color-button-active-text: var(--neutral-100);
+  --color-button-bg: var(--neutral-150);
+  --color-button-hover: var(--neutral-200);
+  --color-button-text: var(--neutral-950);
+  --color-header-backdrop: rgba(28, 28, 30, 0.72);
+  --color-popover-backdrop: rgba(44, 44, 46, 0.78);
+  --color-segment-track: rgba(118, 118, 128, 0.24);
+  --color-segment-active: #48484a;
   --color-code-bg: var(--neutral-150);
   --color-code-text: var(--neutral-800);
   --color-editor-bg: var(--neutral-100);
@@ -173,57 +198,53 @@
   --color-editor-border: var(--neutral-300);
   --color-table-header-bg: var(--neutral-150);
   --color-table-border: var(--neutral-200);
-  --color-success-bg: #2f4038;
-  --color-success-border: #4f8a67;
-  --color-success-text: #8bd7ad;
-  --color-warning-bg: #3f3929;
-  --color-warning-border: #8b7337;
-  --color-warning-text: #e2c873;
-  --color-danger-bg: #45302f;
-  --color-danger-border: #95544d;
-  --color-danger-text: #f09b90;
+  --color-success-bg: #203a29;
+  --color-success-border: #2e7a46;
+  --color-success-text: #63dc83;
+  --color-warning-bg: #3a2e15;
+  --color-warning-border: #826224;
+  --color-warning-text: #ffb747;
+  --color-danger-bg: #3c2220;
+  --color-danger-border: #8f3a35;
+  --color-danger-text: #ff7b72;
   --color-error-bg: var(--color-danger-bg);
   --color-error-border: var(--color-danger-border);
   --color-error-text: var(--color-danger-text);
-  --color-info-bg: #303947;
-  --color-info-border: #55769f;
-  --color-info-text: #9fc3f3;
+  --color-info-bg: #192b42;
+  --color-info-border: #1d4f8c;
+  --color-info-text: #47a3ff;
   --color-loading-bg: var(--color-info-bg);
   --color-loading-text: var(--color-info-text);
   --shadow-panel: var(--shadow-surface);
-  --shadow-focus: 0 0 0 3px rgba(154, 133, 232, 0.24);
+  --shadow-focus: 0 0 0 3.5px rgba(10, 132, 255, 0.35);
 }
 
 @supports (color: oklch(1 0 0)) and (color: color-mix(in oklab, white, black)) {
   :root {
     /* === Primitive palette (OKLCH) ===
-       Neutrals are anchored on lightness with a faint cool-violet hue so the UI
-       reads intentional rather than sterile. State colors are seeds; the
-       semantic layer derives bg/border/text from them via color-mix(). */
+       Neutrals follow the macOS warm-neutral grays (near-zero chroma at hue
+       286) so surfaces read like native AppKit. State colors are Apple system
+       color seeds; the semantic layer derives bg/border/text via color-mix(). */
     --neutral-0: oklch(1 0 0);
-    --neutral-25: oklch(0.99 0.003 270);
-    --neutral-50: oklch(0.984 0.004 270);
-    --neutral-100: oklch(0.967 0.005 270);
-    --neutral-150: oklch(0.945 0.006 270);
-    --neutral-200: oklch(0.91 0.008 270);
-    --neutral-300: oklch(0.85 0.01 270);
-    --neutral-400: oklch(0.72 0.014 270);
-    --neutral-500: oklch(0.55 0.016 270);
-    --neutral-600: oklch(0.5 0.018 270);
-    --neutral-700: oklch(0.41 0.02 270);
-    --neutral-800: oklch(0.31 0.022 270);
-    --neutral-900: oklch(0.24 0.024 270);
-    --neutral-950: oklch(0.17 0.024 270);
+    --neutral-25: oklch(0.988 0.002 286);
+    --neutral-50: oklch(0.983 0.002 286);
+    --neutral-100: oklch(0.971 0.002 286);
+    --neutral-150: oklch(0.945 0.002 286);
+    --neutral-200: oklch(0.92 0.002 286);
+    --neutral-300: oklch(0.872 0.004 286);
+    --neutral-400: oklch(0.755 0.004 286);
+    --neutral-500: oklch(0.64 0.004 286);
+    --neutral-600: oklch(0.527 0.005 286);
+    --neutral-700: oklch(0.42 0.004 286);
+    --neutral-800: oklch(0.33 0.003 286);
+    --neutral-900: oklch(0.216 0.004 286);
+    --neutral-950: oklch(0.18 0.004 286);
 
-    --accent: oklch(0.55 0.19 277);
-    --seed-success: oklch(0.62 0.13 150);
-    --seed-warning: oklch(0.72 0.14 75);
-    --seed-danger: oklch(0.58 0.19 25);
-    --seed-info: oklch(0.58 0.15 255);
-
-    --shadow-raised: 0 1px 2px color-mix(in oklab, var(--neutral-950), transparent 92%);
-    --shadow-surface: 0 1px 2px color-mix(in oklab, var(--neutral-950), transparent 94%),
-      0 10px 24px color-mix(in oklab, var(--neutral-950), transparent 93%);
+    --accent: oklch(0.59 0.21 257);
+    --seed-success: oklch(0.74 0.2 149);
+    --seed-warning: oklch(0.75 0.18 60);
+    --seed-danger: oklch(0.625 0.23 27);
+    --seed-info: oklch(0.59 0.21 257);
 
     /* === Semantic tokens === */
     --color-bg: var(--neutral-100);
@@ -242,14 +263,15 @@
     --color-accent: var(--accent);
     --color-accent-strong: color-mix(in oklab, var(--accent), black 14%);
     --color-accent-soft: color-mix(in oklab, var(--accent), var(--neutral-0) 90%);
-    --color-on-accent: var(--neutral-0);
+    --color-on-accent: #ffffff;
+    --color-action-bg: #0066d6;
+    --color-action-hover: #0057b8;
+    --color-on-action: #ffffff;
     --color-control-bg: var(--neutral-0);
     --color-control-text: var(--neutral-900);
-    --color-button-bg: color-mix(in oklab, var(--accent), var(--neutral-0) 90%);
-    --color-button-hover: color-mix(in oklab, var(--accent), var(--neutral-0) 82%);
-    --color-button-text: color-mix(in oklab, var(--accent), black 30%);
-    --color-button-active-bg: var(--neutral-900);
-    --color-button-active-text: var(--neutral-0);
+    --color-button-bg: var(--neutral-0);
+    --color-button-hover: color-mix(in oklab, var(--neutral-0), var(--neutral-150) 45%);
+    --color-button-text: var(--neutral-900);
     --color-code-bg: var(--neutral-100);
     --color-code-text: var(--neutral-800);
     --color-editor-bg: var(--neutral-25);
@@ -257,57 +279,55 @@
     --color-editor-border: var(--neutral-300);
     --color-table-header-bg: var(--neutral-50);
     --color-table-border: var(--neutral-150);
-    --color-success-bg: color-mix(in oklab, var(--seed-success), var(--neutral-0) 86%);
-    --color-success-border: color-mix(in oklab, var(--seed-success), var(--neutral-0) 60%);
-    --color-success-text: color-mix(in oklab, var(--seed-success), black 32%);
-    --color-warning-bg: color-mix(in oklab, var(--seed-warning), var(--neutral-0) 84%);
-    --color-warning-border: color-mix(in oklab, var(--seed-warning), var(--neutral-0) 52%);
-    --color-warning-text: color-mix(in oklab, var(--seed-warning), black 45%);
+    --color-success-bg: color-mix(in oklab, var(--seed-success), var(--neutral-0) 88%);
+    --color-success-border: color-mix(in oklab, var(--seed-success), var(--neutral-0) 65%);
+    --color-success-text: color-mix(in oklab, var(--seed-success), black 42%);
+    --color-warning-bg: color-mix(in oklab, var(--seed-warning), var(--neutral-0) 88%);
+    --color-warning-border: color-mix(in oklab, var(--seed-warning), var(--neutral-0) 65%);
+    --color-warning-text: color-mix(in oklab, var(--seed-warning), black 50%);
     --color-danger-bg: color-mix(in oklab, var(--seed-danger), var(--neutral-0) 88%);
-    --color-danger-border: color-mix(in oklab, var(--seed-danger), var(--neutral-0) 62%);
+    --color-danger-border: color-mix(in oklab, var(--seed-danger), var(--neutral-0) 65%);
     --color-danger-text: color-mix(in oklab, var(--seed-danger), black 28%);
     /* error family consolidated onto danger */
     --color-error-bg: var(--color-danger-bg);
     --color-error-border: var(--color-danger-border);
     --color-error-text: var(--color-danger-text);
     --color-info-bg: color-mix(in oklab, var(--seed-info), var(--neutral-0) 88%);
-    --color-info-border: color-mix(in oklab, var(--seed-info), var(--neutral-0) 60%);
-    --color-info-text: color-mix(in oklab, var(--seed-info), black 30%);
+    --color-info-border: color-mix(in oklab, var(--seed-info), var(--neutral-0) 65%);
+    --color-info-text: color-mix(in oklab, var(--seed-info), black 25%);
     --color-loading-bg: var(--color-info-bg);
     --color-loading-text: var(--color-info-text);
     --shadow-panel: var(--shadow-surface);
-    --shadow-focus: 0 0 0 3px color-mix(in oklab, var(--color-accent), transparent 80%);
+    --shadow-focus: 0 0 0 3.5px color-mix(in oklab, var(--color-accent), transparent 75%);
   }
 
   :root[data-theme='dark'] {
     /* Dark neutral ramp: neutral-0 is the base surface, higher steps trend
-       lighter so the shared semantic mapping inverts cleanly. */
-    --neutral-0: oklch(0.21 0.014 270);
-    --neutral-25: oklch(0.205 0.013 270);
-    --neutral-50: oklch(0.195 0.012 270);
-    --neutral-100: oklch(0.18 0.012 270);
-    --neutral-150: oklch(0.25 0.016 270);
-    --neutral-200: oklch(0.3 0.018 270);
-    --neutral-300: oklch(0.4 0.022 270);
-    --neutral-400: oklch(0.52 0.022 270);
-    --neutral-500: oklch(0.66 0.02 270);
-    --neutral-600: oklch(0.74 0.018 270);
-    --neutral-700: oklch(0.82 0.016 270);
-    --neutral-800: oklch(0.88 0.014 270);
-    --neutral-900: oklch(0.93 0.012 270);
-    --neutral-950: oklch(0.97 0.008 270);
+       lighter so the shared semantic mapping inverts cleanly. Values follow
+       the iOS/macOS system gray ladder (#1c1c1e / #2c2c2e / #3a3a3c ...). */
+    --neutral-0: oklch(0.288 0.002 286);
+    --neutral-25: oklch(0.272 0.002 286);
+    --neutral-50: oklch(0.258 0.002 286);
+    --neutral-100: oklch(0.215 0.003 286);
+    --neutral-150: oklch(0.345 0.002 286);
+    --neutral-200: oklch(0.398 0.002 286);
+    --neutral-300: oklch(0.455 0.002 286);
+    --neutral-400: oklch(0.53 0.003 286);
+    --neutral-500: oklch(0.64 0.004 286);
+    --neutral-600: oklch(0.7 0.004 286);
+    --neutral-700: oklch(0.795 0.004 286);
+    --neutral-800: oklch(0.872 0.004 286);
+    --neutral-900: oklch(0.93 0.003 286);
+    --neutral-950: oklch(0.971 0.002 286);
 
-    --accent: oklch(0.72 0.15 277);
-    --seed-success: oklch(0.72 0.13 150);
-    --seed-warning: oklch(0.78 0.13 75);
-    --seed-danger: oklch(0.68 0.18 25);
-    --seed-info: oklch(0.7 0.13 255);
-
-    --shadow-raised: 0 1px 2px rgb(0 0 0 / 35%);
-    --shadow-surface: 0 1px 2px rgb(0 0 0 / 30%), 0 10px 24px rgb(0 0 0 / 28%);
+    --accent: oklch(0.63 0.2 255);
+    --seed-success: oklch(0.77 0.21 150);
+    --seed-warning: oklch(0.77 0.17 64);
+    --seed-danger: oklch(0.65 0.23 27);
+    --seed-info: oklch(0.63 0.2 255);
 
     --color-bg: var(--neutral-100);
-    --color-bg-gradient: linear-gradient(180deg, var(--neutral-0) 0%, var(--neutral-100) 100%);
+    --color-bg-gradient: linear-gradient(180deg, oklch(0.24 0.003 286) 0%, var(--neutral-100) 100%);
     --color-surface: var(--neutral-0);
     --color-surface-raised: var(--neutral-150);
     --color-surface-subtle: var(--neutral-50);
@@ -320,16 +340,17 @@
     --color-text-soft: var(--neutral-700);
     --color-label: var(--neutral-600);
     --color-accent: var(--accent);
-    --color-accent-strong: color-mix(in oklab, var(--accent), white 18%);
+    --color-accent-strong: color-mix(in oklab, var(--accent), white 14%);
     --color-accent-soft: color-mix(in oklab, var(--accent), var(--neutral-100) 82%);
-    --color-on-accent: var(--neutral-100);
+    --color-on-accent: #ffffff;
+    --color-action-bg: #0066d6;
+    --color-action-hover: #0057b8;
+    --color-on-action: #ffffff;
     --color-control-bg: var(--neutral-50);
     --color-control-text: var(--neutral-900);
-    --color-button-bg: color-mix(in oklab, var(--accent), var(--neutral-0) 80%);
-    --color-button-hover: color-mix(in oklab, var(--accent), var(--neutral-0) 70%);
-    --color-button-text: color-mix(in oklab, var(--accent), white 28%);
-    --color-button-active-bg: var(--neutral-900);
-    --color-button-active-text: var(--neutral-100);
+    --color-button-bg: var(--neutral-150);
+    --color-button-hover: var(--neutral-200);
+    --color-button-text: var(--neutral-950);
     --color-code-bg: var(--neutral-150);
     --color-code-text: var(--neutral-800);
     --color-editor-bg: var(--neutral-100);
@@ -355,7 +376,7 @@
     --color-loading-bg: var(--color-info-bg);
     --color-loading-text: var(--color-info-text);
     --shadow-panel: var(--shadow-surface);
-    --shadow-focus: 0 0 0 3px color-mix(in oklab, var(--color-accent), transparent 76%);
+    --shadow-focus: 0 0 0 3.5px color-mix(in oklab, var(--color-accent), transparent 68%);
   }
 }
 

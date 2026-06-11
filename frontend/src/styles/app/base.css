@@ -4,6 +4,9 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: var(--color-bg-gradient);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
 }
 
 button,
@@ -14,13 +17,13 @@ textarea {
 }
 
 button {
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   background: var(--color-button-bg);
   color: var(--color-button-text);
   cursor: pointer;
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: 500;
   min-height: var(--control-height-md);
   padding: var(--inset-control-md);
   transition:
@@ -45,7 +48,7 @@ textarea:focus-visible {
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.58;
+  opacity: 0.5;
 }
 
 .inline-action-group {
@@ -68,6 +71,7 @@ button:disabled {
   min-height: var(--control-height-sm);
   padding: var(--inset-control-sm);
   white-space: nowrap;
+  box-shadow: var(--shadow-raised);
 }
 
 .copy-button:hover:not(:disabled) {
@@ -99,11 +103,12 @@ button:disabled {
   color: var(--color-text-soft);
   display: inline-flex;
   font-size: 1rem;
-  font-weight: 800;
+  font-weight: 600;
   justify-content: center;
   min-height: var(--control-height-sm);
   padding: 0;
   width: var(--control-height-sm);
+  box-shadow: var(--shadow-raised);
 }
 
 .icon-action-button:hover:not(:disabled) {
@@ -147,23 +152,30 @@ h4 {
 
 h1 {
   font-size: clamp(1.65rem, 3vw, 2.2rem);
-  letter-spacing: 0;
+  font-weight: 700;
+  letter-spacing: -0.015em;
   line-height: 1.08;
   margin-bottom: var(--space-1);
 }
 
 h2 {
   font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin-bottom: 0;
 }
 
 h3 {
   font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin-bottom: var(--space-2);
 }
 
 h4 {
   font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 0 0 var(--space-2);
 }
 
