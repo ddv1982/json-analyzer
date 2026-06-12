@@ -42,36 +42,37 @@
 
   /* sRGB fallbacks for older WebView engines without OKLCH/color-mix support. */
   --neutral-0: #ffffff;
-  --neutral-25: #fbfbfd;
-  --neutral-50: #f9f9fb;
-  --neutral-100: #f5f5f7;
-  --neutral-150: #ececee;
-  --neutral-200: #e3e3e6;
-  --neutral-300: #d1d1d6;
-  --neutral-400: #aeaeb2;
-  --neutral-500: #8e8e93;
-  --neutral-600: #6e6e73;
-  --neutral-700: #515154;
-  --neutral-800: #3a3a3c;
-  --neutral-900: #1d1d1f;
-  --neutral-950: #141416;
+  --neutral-25: #fbfdff;
+  --neutral-50: #f7fbff;
+  --neutral-100: #f2f6fb;
+  --neutral-150: #e8eef6;
+  --neutral-200: #d8e1ec;
+  --neutral-300: #c1cedd;
+  --neutral-400: #9aaabd;
+  --neutral-500: #708196;
+  --neutral-600: #526276;
+  --neutral-700: #36475b;
+  --neutral-800: #203047;
+  --neutral-900: #111827;
+  --neutral-950: #0b1220;
 
-  --accent: #007aff;
-  --seed-success: #34c759;
-  --seed-warning: #ff9500;
-  --seed-danger: #ff3b30;
-  --seed-info: #007aff;
+  --accent: #0f766e;
+  --seed-success: #16a34a;
+  --seed-warning: #d97706;
+  --seed-danger: #dc2626;
+  --seed-info: #2563eb;
 
-  --shadow-raised: 0 0 0 0.5px rgba(0, 0, 0, 0.05), 0 1px 2.5px rgba(0, 0, 0, 0.08);
+  --shadow-raised: 0 0 0 0.5px rgba(15, 23, 42, 0.05), 0 1px 2.5px rgba(15, 23, 42, 0.08);
   --shadow-surface:
-    0 0 0 0.5px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+    0 0 0 0.5px rgba(15, 23, 42, 0.03), 0 1px 2px rgba(15, 23, 42, 0.04),
+    0 10px 30px rgba(37, 99, 235, 0.08);
   --shadow-overlay:
-    0 0 0 0.5px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(0, 0, 0, 0.08),
-    0 16px 40px rgba(0, 0, 0, 0.14);
+    0 0 0 0.5px rgba(15, 23, 42, 0.06), 0 6px 16px rgba(15, 23, 42, 0.12),
+    0 20px 50px rgba(15, 23, 42, 0.18);
 
   /* === Semantic tokens === */
   --color-bg: var(--neutral-100);
-  --color-bg-gradient: linear-gradient(180deg, var(--neutral-50) 0%, var(--neutral-100) 100%);
+  --color-bg-gradient: linear-gradient(135deg, #f7fbff 0%, #f3f8f4 48%, #fff8ed 100%);
   --color-surface: var(--neutral-0);
   --color-surface-raised: var(--neutral-0);
   --color-surface-subtle: var(--neutral-50);
@@ -84,86 +85,85 @@
   --color-text-soft: var(--neutral-700);
   --color-label: var(--neutral-600);
   --color-accent: var(--accent);
-  --color-accent-strong: #0066d6;
-  --color-accent-soft: #e5f1ff;
+  --color-accent-strong: #0b5f59;
+  --color-accent-soft: #dff7f3;
   --color-on-accent: #ffffff;
-  --color-action-bg: #0066d6;
-  --color-action-hover: #0057b8;
+  --color-action-bg: #2563eb;
+  --color-action-hover: #1d4ed8;
   --color-on-action: #ffffff;
   --color-control-bg: var(--neutral-0);
   --color-control-text: var(--neutral-900);
   --color-button-bg: var(--neutral-0);
-  --color-button-hover: #f2f2f4;
+  --color-button-hover: #eef6f8;
   --color-button-text: var(--neutral-900);
-  --color-header-backdrop: rgba(245, 245, 247, 0.72);
-  --color-popover-backdrop: rgba(255, 255, 255, 0.78);
-  --color-segment-track: rgba(120, 120, 128, 0.12);
+  --color-header-backdrop: rgba(247, 251, 255, 0.78);
+  --color-popover-backdrop: rgba(255, 255, 255, 0.86);
+  --color-segment-track: rgba(15, 118, 110, 0.1);
   --color-segment-active: #ffffff;
-  --color-code-bg: var(--neutral-100);
+  --color-code-bg: #edf6f7;
   --color-code-text: var(--neutral-800);
   --color-editor-bg: var(--neutral-25);
   --color-editor-text: var(--neutral-900);
   --color-editor-border: var(--neutral-300);
   --color-table-header-bg: var(--neutral-50);
   --color-table-border: var(--neutral-150);
-  --color-success-bg: #e9f8ee;
-  --color-success-border: #a9e4ba;
-  --color-success-text: #1d7a3c;
-  --color-warning-bg: #fff3e0;
-  --color-warning-border: #f3cc90;
-  --color-warning-text: #8a5300;
-  --color-danger-bg: #feeceb;
-  --color-danger-border: #f5aba6;
-  --color-danger-text: #c0271c;
+  --color-success-bg: #e8f8ee;
+  --color-success-border: #9bdcb4;
+  --color-success-text: #166534;
+  --color-warning-bg: #fff4d8;
+  --color-warning-border: #edc76d;
+  --color-warning-text: #854d0e;
+  --color-danger-bg: #fff0f0;
+  --color-danger-border: #f0aaa8;
+  --color-danger-text: #b4232c;
   /* error family consolidated onto danger */
   --color-error-bg: var(--color-danger-bg);
   --color-error-border: var(--color-danger-border);
   --color-error-text: var(--color-danger-text);
-  --color-info-bg: #e5f1ff;
-  --color-info-border: #a3ccfa;
-  --color-info-text: #0b61c4;
+  --color-info-bg: #eaf2ff;
+  --color-info-border: #adc9ff;
+  --color-info-text: #1d4ed8;
   --color-loading-bg: var(--color-info-bg);
   --color-loading-text: var(--color-info-text);
   --shadow-panel: var(--shadow-surface);
-  --shadow-focus: 0 0 0 3.5px rgba(0, 122, 255, 0.25);
+  --shadow-focus: 0 0 0 3.5px rgba(15, 118, 110, 0.24);
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --neutral-0: #2c2c2e;
-  --neutral-25: #29292b;
-  --neutral-50: #262628;
-  --neutral-100: #1c1c1e;
-  --neutral-150: #3a3a3c;
-  --neutral-200: #48484a;
-  --neutral-300: #58585a;
-  --neutral-400: #6e6e70;
-  --neutral-500: #8e8e93;
-  --neutral-600: #a1a1a6;
-  --neutral-700: #bfbfc4;
-  --neutral-800: #d1d1d6;
-  --neutral-900: #e8e8ed;
-  --neutral-950: #f5f5f7;
+  --neutral-0: #20252d;
+  --neutral-25: #1b2028;
+  --neutral-50: #171c24;
+  --neutral-100: #11151c;
+  --neutral-150: #29313b;
+  --neutral-200: #354150;
+  --neutral-300: #465568;
+  --neutral-400: #607083;
+  --neutral-500: #8a98aa;
+  --neutral-600: #aab5c3;
+  --neutral-700: #c8d1dc;
+  --neutral-800: #dde5ee;
+  --neutral-900: #edf3f8;
+  --neutral-950: #f8fbff;
 
-  --accent: #0a84ff;
-  --seed-success: #30d158;
-  --seed-warning: #ff9f0a;
-  --seed-danger: #ff453a;
-  --seed-info: #0a84ff;
+  --accent: #2dd4bf;
+  --seed-success: #4ade80;
+  --seed-warning: #fbbf24;
+  --seed-danger: #fb7185;
+  --seed-info: #60a5fa;
 
-  /* Drop shadows read as nothing on near-black; the inset top hairline
-     supplies the macOS "edge light" instead. */
-  --shadow-raised: inset 0 0.5px 0 rgba(255, 255, 255, 0.06), 0 1px 2.5px rgba(0, 0, 0, 0.45);
+  --shadow-raised:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.08), 0 1px 2.5px rgba(0, 0, 0, 0.5);
   --shadow-surface:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.4),
-    0 8px 24px rgba(0, 0, 0, 0.35);
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.48),
+    0 14px 36px rgba(0, 0, 0, 0.38);
   --shadow-overlay:
-    0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 8px 20px rgba(0, 0, 0, 0.5),
-    0 24px 60px rgba(0, 0, 0, 0.45);
+    0 0 0 0.5px rgba(255, 255, 255, 0.1), 0 10px 24px rgba(0, 0, 0, 0.55),
+    0 28px 70px rgba(0, 0, 0, 0.5);
 
   --color-bg: var(--neutral-100);
-  --color-bg-gradient: linear-gradient(180deg, #202022 0%, var(--neutral-100) 100%);
+  --color-bg-gradient: linear-gradient(135deg, #11151c 0%, #121b18 48%, #1b1718 100%);
   --color-surface: var(--neutral-0);
   --color-surface-raised: var(--neutral-150);
   --color-surface-subtle: var(--neutral-50);
@@ -176,21 +176,21 @@
   --color-text-soft: var(--neutral-700);
   --color-label: var(--neutral-600);
   --color-accent: var(--accent);
-  --color-accent-strong: #3395ff;
-  --color-accent-soft: #16335a;
-  --color-on-accent: #ffffff;
-  --color-action-bg: #0066d6;
-  --color-action-hover: #0057b8;
+  --color-accent-strong: #5eead4;
+  --color-accent-soft: #123b3a;
+  --color-on-accent: #052522;
+  --color-action-bg: #3b82f6;
+  --color-action-hover: #2563eb;
   --color-on-action: #ffffff;
   --color-control-bg: var(--neutral-50);
   --color-control-text: var(--neutral-900);
   --color-button-bg: var(--neutral-150);
   --color-button-hover: var(--neutral-200);
   --color-button-text: var(--neutral-950);
-  --color-header-backdrop: rgba(28, 28, 30, 0.72);
-  --color-popover-backdrop: rgba(44, 44, 46, 0.78);
-  --color-segment-track: rgba(118, 118, 128, 0.24);
-  --color-segment-active: #48484a;
+  --color-header-backdrop: rgba(17, 21, 28, 0.78);
+  --color-popover-backdrop: rgba(32, 37, 45, 0.88);
+  --color-segment-track: rgba(45, 212, 191, 0.13);
+  --color-segment-active: var(--neutral-150);
   --color-code-bg: var(--neutral-150);
   --color-code-text: var(--neutral-800);
   --color-editor-bg: var(--neutral-100);
@@ -198,57 +198,61 @@
   --color-editor-border: var(--neutral-300);
   --color-table-header-bg: var(--neutral-150);
   --color-table-border: var(--neutral-200);
-  --color-success-bg: #203a29;
-  --color-success-border: #2e7a46;
-  --color-success-text: #63dc83;
-  --color-warning-bg: #3a2e15;
-  --color-warning-border: #826224;
-  --color-warning-text: #ffb747;
-  --color-danger-bg: #3c2220;
-  --color-danger-border: #8f3a35;
-  --color-danger-text: #ff7b72;
+  --color-success-bg: #173525;
+  --color-success-border: #2e7d4e;
+  --color-success-text: #86efac;
+  --color-warning-bg: #3a2b13;
+  --color-warning-border: #9a6b1d;
+  --color-warning-text: #fcd34d;
+  --color-danger-bg: #3d1f29;
+  --color-danger-border: #9f3a4b;
+  --color-danger-text: #fda4af;
   --color-error-bg: var(--color-danger-bg);
   --color-error-border: var(--color-danger-border);
   --color-error-text: var(--color-danger-text);
-  --color-info-bg: #192b42;
-  --color-info-border: #1d4f8c;
-  --color-info-text: #47a3ff;
+  --color-info-bg: #162a45;
+  --color-info-border: #2b5f9e;
+  --color-info-text: #93c5fd;
   --color-loading-bg: var(--color-info-bg);
   --color-loading-text: var(--color-info-text);
   --shadow-panel: var(--shadow-surface);
-  --shadow-focus: 0 0 0 3.5px rgba(10, 132, 255, 0.35);
+  --shadow-focus: 0 0 0 3.5px rgba(45, 212, 191, 0.28);
 }
 
 @supports (color: oklch(1 0 0)) and (color: color-mix(in oklab, white, black)) {
   :root {
     /* === Primitive palette (OKLCH) ===
-       Neutrals follow the macOS warm-neutral grays (near-zero chroma at hue
-       286) so surfaces read like native AppKit. State colors are Apple system
-       color seeds; the semantic layer derives bg/border/text via color-mix(). */
+       Neutrals carry a small amount of cool chroma so panels keep a crisp
+       editorial feel without turning the app into a single-hue interface. */
     --neutral-0: oklch(1 0 0);
-    --neutral-25: oklch(0.988 0.002 286);
-    --neutral-50: oklch(0.983 0.002 286);
-    --neutral-100: oklch(0.971 0.002 286);
-    --neutral-150: oklch(0.945 0.002 286);
-    --neutral-200: oklch(0.92 0.002 286);
-    --neutral-300: oklch(0.872 0.004 286);
-    --neutral-400: oklch(0.755 0.004 286);
-    --neutral-500: oklch(0.64 0.004 286);
-    --neutral-600: oklch(0.527 0.005 286);
-    --neutral-700: oklch(0.42 0.004 286);
-    --neutral-800: oklch(0.33 0.003 286);
-    --neutral-900: oklch(0.216 0.004 286);
-    --neutral-950: oklch(0.18 0.004 286);
+    --neutral-25: oklch(0.993 0.005 240);
+    --neutral-50: oklch(0.982 0.009 240);
+    --neutral-100: oklch(0.965 0.013 242);
+    --neutral-150: oklch(0.935 0.017 244);
+    --neutral-200: oklch(0.89 0.023 246);
+    --neutral-300: oklch(0.82 0.031 248);
+    --neutral-400: oklch(0.71 0.04 250);
+    --neutral-500: oklch(0.6 0.048 252);
+    --neutral-600: oklch(0.5 0.054 254);
+    --neutral-700: oklch(0.39 0.06 256);
+    --neutral-800: oklch(0.29 0.066 258);
+    --neutral-900: oklch(0.21 0.07 260);
+    --neutral-950: oklch(0.16 0.074 262);
 
-    --accent: oklch(0.59 0.21 257);
-    --seed-success: oklch(0.74 0.2 149);
-    --seed-warning: oklch(0.75 0.18 60);
-    --seed-danger: oklch(0.625 0.23 27);
-    --seed-info: oklch(0.59 0.21 257);
+    --accent: oklch(0.52 0.11 185);
+    --seed-success: oklch(0.63 0.17 148);
+    --seed-warning: oklch(0.68 0.16 65);
+    --seed-danger: oklch(0.58 0.22 29);
+    --seed-info: oklch(0.55 0.22 263);
 
     /* === Semantic tokens === */
     --color-bg: var(--neutral-100);
-    --color-bg-gradient: linear-gradient(180deg, var(--neutral-50) 0%, var(--neutral-100) 100%);
+    --color-bg-gradient: linear-gradient(
+      135deg,
+      oklch(0.982 0.009 240) 0%,
+      oklch(0.972 0.018 150) 48%,
+      oklch(0.982 0.026 74) 100%
+    );
     --color-surface: var(--neutral-0);
     --color-surface-raised: var(--neutral-0);
     --color-surface-subtle: var(--neutral-50);
@@ -261,73 +265,75 @@
     --color-text-soft: var(--neutral-700);
     --color-label: var(--neutral-600);
     --color-accent: var(--accent);
-    --color-accent-strong: color-mix(in oklab, var(--accent), black 14%);
-    --color-accent-soft: color-mix(in oklab, var(--accent), var(--neutral-0) 90%);
+    --color-accent-strong: color-mix(in oklab, var(--accent), black 16%);
+    --color-accent-soft: color-mix(in oklab, var(--accent), var(--neutral-0) 88%);
     --color-on-accent: #ffffff;
-    --color-action-bg: #0066d6;
-    --color-action-hover: #0057b8;
+    --color-action-bg: #2563eb;
+    --color-action-hover: #1d4ed8;
     --color-on-action: #ffffff;
     --color-control-bg: var(--neutral-0);
     --color-control-text: var(--neutral-900);
     --color-button-bg: var(--neutral-0);
-    --color-button-hover: color-mix(in oklab, var(--neutral-0), var(--neutral-150) 45%);
+    --color-button-hover: color-mix(in oklab, var(--neutral-0), var(--accent) 7%);
     --color-button-text: var(--neutral-900);
-    --color-code-bg: var(--neutral-100);
+    --color-code-bg: color-mix(in oklab, var(--accent), var(--neutral-0) 91%);
     --color-code-text: var(--neutral-800);
     --color-editor-bg: var(--neutral-25);
     --color-editor-text: var(--neutral-900);
     --color-editor-border: var(--neutral-300);
     --color-table-header-bg: var(--neutral-50);
     --color-table-border: var(--neutral-150);
-    --color-success-bg: color-mix(in oklab, var(--seed-success), var(--neutral-0) 88%);
-    --color-success-border: color-mix(in oklab, var(--seed-success), var(--neutral-0) 65%);
-    --color-success-text: color-mix(in oklab, var(--seed-success), black 42%);
-    --color-warning-bg: color-mix(in oklab, var(--seed-warning), var(--neutral-0) 88%);
-    --color-warning-border: color-mix(in oklab, var(--seed-warning), var(--neutral-0) 65%);
-    --color-warning-text: color-mix(in oklab, var(--seed-warning), black 50%);
-    --color-danger-bg: color-mix(in oklab, var(--seed-danger), var(--neutral-0) 88%);
-    --color-danger-border: color-mix(in oklab, var(--seed-danger), var(--neutral-0) 65%);
-    --color-danger-text: color-mix(in oklab, var(--seed-danger), black 28%);
+    --color-success-bg: color-mix(in oklab, var(--seed-success), var(--neutral-0) 89%);
+    --color-success-border: color-mix(in oklab, var(--seed-success), var(--neutral-0) 62%);
+    --color-success-text: color-mix(in oklab, var(--seed-success), black 34%);
+    --color-warning-bg: color-mix(in oklab, var(--seed-warning), var(--neutral-0) 86%);
+    --color-warning-border: color-mix(in oklab, var(--seed-warning), var(--neutral-0) 56%);
+    --color-warning-text: color-mix(in oklab, var(--seed-warning), black 48%);
+    --color-danger-bg: color-mix(in oklab, var(--seed-danger), var(--neutral-0) 89%);
+    --color-danger-border: color-mix(in oklab, var(--seed-danger), var(--neutral-0) 62%);
+    --color-danger-text: color-mix(in oklab, var(--seed-danger), black 25%);
     /* error family consolidated onto danger */
     --color-error-bg: var(--color-danger-bg);
     --color-error-border: var(--color-danger-border);
     --color-error-text: var(--color-danger-text);
-    --color-info-bg: color-mix(in oklab, var(--seed-info), var(--neutral-0) 88%);
-    --color-info-border: color-mix(in oklab, var(--seed-info), var(--neutral-0) 65%);
-    --color-info-text: color-mix(in oklab, var(--seed-info), black 25%);
+    --color-info-bg: color-mix(in oklab, var(--seed-info), var(--neutral-0) 90%);
+    --color-info-border: color-mix(in oklab, var(--seed-info), var(--neutral-0) 66%);
+    --color-info-text: color-mix(in oklab, var(--seed-info), black 18%);
     --color-loading-bg: var(--color-info-bg);
     --color-loading-text: var(--color-info-text);
     --shadow-panel: var(--shadow-surface);
-    --shadow-focus: 0 0 0 3.5px color-mix(in oklab, var(--color-accent), transparent 75%);
+    --shadow-focus: 0 0 0 3.5px color-mix(in oklab, var(--color-accent), transparent 76%);
   }
 
   :root[data-theme='dark'] {
-    /* Dark neutral ramp: neutral-0 is the base surface, higher steps trend
-       lighter so the shared semantic mapping inverts cleanly. Values follow
-       the iOS/macOS system gray ladder (#1c1c1e / #2c2c2e / #3a3a3c ...). */
-    --neutral-0: oklch(0.288 0.002 286);
-    --neutral-25: oklch(0.272 0.002 286);
-    --neutral-50: oklch(0.258 0.002 286);
-    --neutral-100: oklch(0.215 0.003 286);
-    --neutral-150: oklch(0.345 0.002 286);
-    --neutral-200: oklch(0.398 0.002 286);
-    --neutral-300: oklch(0.455 0.002 286);
-    --neutral-400: oklch(0.53 0.003 286);
-    --neutral-500: oklch(0.64 0.004 286);
-    --neutral-600: oklch(0.7 0.004 286);
-    --neutral-700: oklch(0.795 0.004 286);
-    --neutral-800: oklch(0.872 0.004 286);
-    --neutral-900: oklch(0.93 0.003 286);
-    --neutral-950: oklch(0.971 0.002 286);
+    --neutral-0: oklch(0.26 0.03 250);
+    --neutral-25: oklch(0.235 0.03 250);
+    --neutral-50: oklch(0.215 0.03 250);
+    --neutral-100: oklch(0.18 0.032 252);
+    --neutral-150: oklch(0.31 0.034 250);
+    --neutral-200: oklch(0.37 0.038 250);
+    --neutral-300: oklch(0.45 0.044 250);
+    --neutral-400: oklch(0.56 0.046 250);
+    --neutral-500: oklch(0.68 0.04 250);
+    --neutral-600: oklch(0.77 0.033 248);
+    --neutral-700: oklch(0.85 0.026 246);
+    --neutral-800: oklch(0.91 0.02 244);
+    --neutral-900: oklch(0.96 0.014 242);
+    --neutral-950: oklch(0.985 0.008 240);
 
-    --accent: oklch(0.63 0.2 255);
-    --seed-success: oklch(0.77 0.21 150);
-    --seed-warning: oklch(0.77 0.17 64);
-    --seed-danger: oklch(0.65 0.23 27);
-    --seed-info: oklch(0.63 0.2 255);
+    --accent: oklch(0.78 0.14 185);
+    --seed-success: oklch(0.78 0.18 148);
+    --seed-warning: oklch(0.84 0.16 82);
+    --seed-danger: oklch(0.72 0.18 16);
+    --seed-info: oklch(0.72 0.15 255);
 
     --color-bg: var(--neutral-100);
-    --color-bg-gradient: linear-gradient(180deg, oklch(0.24 0.003 286) 0%, var(--neutral-100) 100%);
+    --color-bg-gradient: linear-gradient(
+      135deg,
+      var(--neutral-100) 0%,
+      oklch(0.2 0.04 168) 48%,
+      oklch(0.2 0.035 18) 100%
+    );
     --color-surface: var(--neutral-0);
     --color-surface-raised: var(--neutral-150);
     --color-surface-subtle: var(--neutral-50);
@@ -340,11 +346,11 @@
     --color-text-soft: var(--neutral-700);
     --color-label: var(--neutral-600);
     --color-accent: var(--accent);
-    --color-accent-strong: color-mix(in oklab, var(--accent), white 14%);
-    --color-accent-soft: color-mix(in oklab, var(--accent), var(--neutral-100) 82%);
-    --color-on-accent: #ffffff;
-    --color-action-bg: #0066d6;
-    --color-action-hover: #0057b8;
+    --color-accent-strong: color-mix(in oklab, var(--accent), white 10%);
+    --color-accent-soft: color-mix(in oklab, var(--accent), var(--neutral-100) 78%);
+    --color-on-accent: #052522;
+    --color-action-bg: #3b82f6;
+    --color-action-hover: #2563eb;
     --color-on-action: #ffffff;
     --color-control-bg: var(--neutral-50);
     --color-control-text: var(--neutral-900);
@@ -358,25 +364,25 @@
     --color-editor-border: var(--neutral-300);
     --color-table-header-bg: var(--neutral-150);
     --color-table-border: var(--neutral-200);
-    --color-success-bg: color-mix(in oklab, var(--seed-success), var(--neutral-100) 84%);
-    --color-success-border: color-mix(in oklab, var(--seed-success), var(--neutral-100) 55%);
-    --color-success-text: color-mix(in oklab, var(--seed-success), white 25%);
-    --color-warning-bg: color-mix(in oklab, var(--seed-warning), var(--neutral-100) 84%);
-    --color-warning-border: color-mix(in oklab, var(--seed-warning), var(--neutral-100) 55%);
-    --color-warning-text: color-mix(in oklab, var(--seed-warning), white 25%);
-    --color-danger-bg: color-mix(in oklab, var(--seed-danger), var(--neutral-100) 84%);
-    --color-danger-border: color-mix(in oklab, var(--seed-danger), var(--neutral-100) 55%);
-    --color-danger-text: color-mix(in oklab, var(--seed-danger), white 25%);
+    --color-success-bg: color-mix(in oklab, var(--seed-success), var(--neutral-100) 82%);
+    --color-success-border: color-mix(in oklab, var(--seed-success), var(--neutral-100) 50%);
+    --color-success-text: color-mix(in oklab, var(--seed-success), white 18%);
+    --color-warning-bg: color-mix(in oklab, var(--seed-warning), var(--neutral-100) 83%);
+    --color-warning-border: color-mix(in oklab, var(--seed-warning), var(--neutral-100) 48%);
+    --color-warning-text: color-mix(in oklab, var(--seed-warning), white 12%);
+    --color-danger-bg: color-mix(in oklab, var(--seed-danger), var(--neutral-100) 83%);
+    --color-danger-border: color-mix(in oklab, var(--seed-danger), var(--neutral-100) 50%);
+    --color-danger-text: color-mix(in oklab, var(--seed-danger), white 18%);
     --color-error-bg: var(--color-danger-bg);
     --color-error-border: var(--color-danger-border);
     --color-error-text: var(--color-danger-text);
-    --color-info-bg: color-mix(in oklab, var(--seed-info), var(--neutral-100) 84%);
-    --color-info-border: color-mix(in oklab, var(--seed-info), var(--neutral-100) 55%);
-    --color-info-text: color-mix(in oklab, var(--seed-info), white 25%);
+    --color-info-bg: color-mix(in oklab, var(--seed-info), var(--neutral-100) 83%);
+    --color-info-border: color-mix(in oklab, var(--seed-info), var(--neutral-100) 50%);
+    --color-info-text: color-mix(in oklab, var(--seed-info), white 16%);
     --color-loading-bg: var(--color-info-bg);
     --color-loading-text: var(--color-info-text);
     --shadow-panel: var(--shadow-surface);
-    --shadow-focus: 0 0 0 3.5px color-mix(in oklab, var(--color-accent), transparent 68%);
+    --shadow-focus: 0 0 0 3.5px color-mix(in oklab, var(--color-accent), transparent 72%);
   }
 }
 
